@@ -38,6 +38,22 @@ const functionalFocusOptions = [
   "recovery",
 ];
 
+const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const monthNames = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -99,9 +115,9 @@ function getCalendarDays(selectedDate: string) {
 function getDayLabel(dateIso: string) {
   const date = new Date(`${dateIso}T12:00:00`);
   return {
-    day: date.toLocaleDateString(undefined, { weekday: "short" }),
+    day: dayNames[date.getDay()],
     number: date.getDate().toString().padStart(2, "0"),
-    month: date.toLocaleDateString(undefined, { month: "short" }),
+    month: monthNames[date.getMonth()],
   };
 }
 
@@ -152,6 +168,14 @@ export function WorkoutApp() {
       ),
     [state.scheduled, state.selectedDate],
   );
+
+  const selectedDateLabel = getDayLabel(state.selectedDate);
+  const primaryScheduledWorkout = selectedDateWorkouts[0] ?? null;
+  const primaryWorkout = primaryScheduledWorkout
+    ? state.workouts.find(
+        (workout) => workout.id === primaryScheduledWorkout.workoutId,
+      )
+    : null;
 
   const activeScheduledWorkout = useMemo(
     () =>
@@ -342,60 +366,57 @@ export function WorkoutApp() {
 
   return (
     <main className="book-shell">
-      <section className="hero-grid">
+      <section className="hero-grid today-hero">
         <div className="hero-panel" aria-hidden="true">
-          <span className="hero-number">01</span>
+          <span className="hero-number">{selectedDateLabel.number}</span>
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">Functional strength calendar</p>
-          <h1>Build a workout library from screenshots, then train from a calendar.</h1>
-          <p>
-            Import your screenshot workouts, clean up the OCR, tag each workout by
-            movement quality, and schedule sessions you can follow from your phone.
+          <p className="eyebrow">
+            {selectedDateLabel.day} / {selectedDateLabel.month}
           </p>
+          <h1>{primaryWorkout ? primaryWorkout.name : "Today's workout"}</h1>
+          {primaryWorkout && primaryScheduledWorkout ? (
+            <>
+              <p>{primaryWorkout.cleanInstructions.slice(0, 180)}</p>
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  onClick={() => setActiveScheduleId(primaryScheduledWorkout.id)}
+                >
+                  Start workout
+                </button>
+                <span>{statusLabel(primaryScheduledWorkout.status)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>Nothing scheduled yet. Pick a workout from the library below.</p>
+              <div className="hero-actions">
+                <a href="#library">Choose workout</a>
+                <a href="#schedule">Open calendar</a>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
       <section className="section-block">
         <div className="section-heading">
           <span>01</span>
-          <h2>Import screenshots</h2>
+          <h2>Today</h2>
         </div>
-        <div className="upload-card">
-          <input
-            ref={importFileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(event) => void handleScreenshotUpload(event.target.files)}
-          />
-          <p>
-            OCR runs in the browser. Keep the screenshot attached, then review and
-            correct the extracted workout before adding it to the library.
-          </p>
-          {ocrProgress ? <strong>{ocrProgress}</strong> : null}
-        </div>
-
-        <div className="review-grid">
-          {state.imports.map((draft) => (
-            <ImportReviewCard
-              key={draft.id}
-              draft={draft}
-              onSave={saveDraftAsWorkout}
-            />
-          ))}
-          {state.imports.length === 0 ? (
-            <p className="empty-copy">
-              Upload a few screenshots to start building your workout library.
-            </p>
-          ) : null}
-        </div>
+        <SelectedDateList
+          scheduledWorkouts={selectedDateWorkouts}
+          workouts={state.workouts}
+          selectedDate={state.selectedDate}
+          onStart={(id) => setActiveScheduleId(id)}
+        />
       </section>
 
-      <section className="section-block">
+      <section className="section-block" id="schedule">
         <div className="section-heading">
           <span>02</span>
-          <h2>Schedule</h2>
+          <h2>Calendar</h2>
         </div>
         <div className="calendar-tools">
           <label>
@@ -438,34 +459,9 @@ export function WorkoutApp() {
           onStart={(id) => setActiveScheduleId(id)}
           onRemove={removeScheduledWorkout}
         />
-        <div className="today-list">
-          <h3>Planned for {state.selectedDate}</h3>
-          {selectedDateWorkouts.map((scheduledWorkout) => {
-            const workout = state.workouts.find(
-              (item) => item.id === scheduledWorkout.workoutId,
-            );
-
-            if (!workout) return null;
-
-            return (
-              <div className="planned-row" key={scheduledWorkout.id}>
-                <div>
-                  <strong>{workout.name}</strong>
-                  <span>{statusLabel(scheduledWorkout.status)}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveScheduleId(scheduledWorkout.id)}
-                >
-                  Start
-                </button>
-              </div>
-            );
-          })}
-        </div>
       </section>
 
-      <section className="section-block">
+      <section className="section-block" id="library">
         <div className="section-heading">
           <span>03</span>
           <h2>Workout library</h2>
@@ -480,12 +476,82 @@ export function WorkoutApp() {
           ))}
           {state.workouts.length === 0 ? (
             <p className="empty-copy">
-              Reviewed imports will appear here as reusable workout templates.
+              No workouts saved yet.
             </p>
           ) : null}
         </div>
       </section>
+
+      <section className="section-block" id="import">
+        <div className="section-heading">
+          <span>04</span>
+          <h2>Add workouts</h2>
+        </div>
+        <div className="upload-card">
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(event) => void handleScreenshotUpload(event.target.files)}
+          />
+          {ocrProgress ? <strong>{ocrProgress}</strong> : null}
+        </div>
+
+        <div className="review-grid">
+          {state.imports.map((draft) => (
+            <ImportReviewCard
+              key={draft.id}
+              draft={draft}
+              onSave={saveDraftAsWorkout}
+            />
+          ))}
+          {state.imports.length === 0 ? (
+            <p className="empty-copy">Upload screenshots when you are ready.</p>
+          ) : null}
+        </div>
+      </section>
     </main>
+  );
+}
+
+function SelectedDateList({
+  scheduledWorkouts,
+  workouts,
+  selectedDate,
+  onStart,
+}: {
+  scheduledWorkouts: ScheduledWorkout[];
+  workouts: WorkoutTemplate[];
+  selectedDate: string;
+  onStart: (id: string) => void;
+}) {
+  return (
+    <div className="today-list">
+      <h3>{selectedDate}</h3>
+      {scheduledWorkouts.map((scheduledWorkout) => {
+        const workout = workouts.find(
+          (item) => item.id === scheduledWorkout.workoutId,
+        );
+
+        if (!workout) return null;
+
+        return (
+          <div className="planned-row" key={scheduledWorkout.id}>
+            <div>
+              <strong>{workout.name}</strong>
+              <span>{statusLabel(scheduledWorkout.status)}</span>
+            </div>
+            <button type="button" onClick={() => onStart(scheduledWorkout.id)}>
+              Start
+            </button>
+          </div>
+        );
+      })}
+      {scheduledWorkouts.length === 0 ? (
+        <p className="empty-copy">No workout scheduled for this day.</p>
+      ) : null}
+    </div>
   );
 }
 
