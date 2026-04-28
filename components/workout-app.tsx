@@ -7,6 +7,7 @@ import {
   parseWorkoutStateExport,
   saveWorkoutState,
 } from "@/lib/local-store";
+import { createSeedSchedule, seedWorkouts } from "@/lib/seed-workouts";
 import {
   movementPatternOptions,
   type ExerciseStep,
@@ -21,8 +22,8 @@ import {
 const todayIso = toDateInputValue(new Date());
 
 const starterState: WorkoutAppState = {
-  workouts: [],
-  scheduled: [],
+  workouts: seedWorkouts,
+  scheduled: createSeedSchedule(todayIso),
   imports: [],
   selectedDate: todayIso,
 };
@@ -128,6 +129,25 @@ function statusLabel(status: WorkoutStatus) {
   return "Planned";
 }
 
+function hydrateStoredState(storedState: WorkoutAppState | undefined | null) {
+  if (!storedState) {
+    return starterState;
+  }
+
+  if (storedState.workouts.length > 0) {
+    return storedState;
+  }
+
+  return {
+    ...storedState,
+    workouts: seedWorkouts,
+    scheduled:
+      storedState.scheduled.length > 0
+        ? storedState.scheduled
+        : createSeedSchedule(storedState.selectedDate || todayIso),
+  };
+}
+
 export function WorkoutApp() {
   const [state, setState] = useState<WorkoutAppState>(starterState);
   const [loaded, setLoaded] = useState(false);
@@ -140,8 +160,8 @@ export function WorkoutApp() {
 
     loadWorkoutState()
       .then((storedState) => {
-        if (storedState && isMounted) {
-          setState(storedState);
+        if (isMounted) {
+          setState(hydrateStoredState(storedState));
         }
       })
       .finally(() => {
@@ -367,9 +387,6 @@ export function WorkoutApp() {
   return (
     <main className="book-shell">
       <section className="hero-grid today-hero">
-        <div className="hero-panel" aria-hidden="true">
-          <span className="hero-number">{selectedDateLabel.number}</span>
-        </div>
         <div className="hero-copy">
           <p className="eyebrow">
             {selectedDateLabel.day} / {selectedDateLabel.month}

@@ -629,7 +629,7 @@ button:disabled {
 }
 
 .hero-copy {
-  border-top: 1px solid var(--foreground);
+  border-top: 4px solid var(--foreground);
 }
 
 .hero-copy h1 {
@@ -655,8 +655,7 @@ button:disabled {
 
 @media (min-width: 901px) {
   .hero-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+    display: block;
   }
 
   .hero-panel {
@@ -669,7 +668,9 @@ button:disabled {
   }
 
   .hero-copy {
-    border-top: 2px solid var(--foreground);
+    border-top: 4px solid var(--foreground);
+    margin-left: auto;
+    max-width: 34rem;
   }
 
   .hero-copy h1 {
