@@ -134,9 +134,12 @@ button {
 .hero-actions span {
   border: 1px solid var(--hairline-subtle);
   color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+  min-height: 44px;
   padding: 0.75rem 0.9rem;
   text-decoration: none;
   text-transform: uppercase;
@@ -292,8 +295,10 @@ button,
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+  min-height: 44px;
   padding: 0.8rem 1rem;
   text-transform: uppercase;
+  touch-action: manipulation;
 }
 
 button:disabled {
@@ -350,6 +355,20 @@ button:disabled {
   text-transform: none;
 }
 
+.day-select {
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  color: var(--foreground);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 150px;
+  padding: 0;
+  text-align: left;
+  text-transform: none;
+}
+
 .calendar-day.is-selected {
   background: var(--surface);
   border-color: var(--foreground);
@@ -378,10 +397,14 @@ button:disabled {
   padding-top: 0.6rem;
 }
 
-.calendar-pill span {
-  color: var(--muted);
-  font-size: 0.75rem;
-  text-decoration: underline;
+.calendar-pill button {
+  background: transparent;
+  border-color: var(--hairline-subtle);
+  color: var(--foreground);
+  font-size: 0.72rem;
+  justify-self: start;
+  min-height: 36px;
+  padding: 0.45rem 0.55rem;
 }
 
 .today-list {

@@ -700,16 +700,20 @@ function CalendarBoard({
         const dayWorkouts = scheduled.filter((item) => item.date === date);
 
         return (
-          <button
+          <div
             className={`calendar-day ${date === selectedDate ? "is-selected" : ""}`}
             key={date}
-            type="button"
-            onClick={() => onSelectDate(date)}
           >
-            <span className="day-name">{label.day}</span>
-            <span className="day-number">{label.number}</span>
-            <span className="day-month">{label.month}</span>
-            <span className="day-count">{dayWorkouts.length} planned</span>
+            <button
+              className="day-select"
+              type="button"
+              onClick={() => onSelectDate(date)}
+            >
+              <span className="day-name">{label.day}</span>
+              <span className="day-number">{label.number}</span>
+              <span className="day-month">{label.month}</span>
+              <span className="day-count">{dayWorkouts.length} planned</span>
+            </button>
             {dayWorkouts.map((scheduledWorkout) => {
               const workout = workouts.find(
                 (item) => item.id === scheduledWorkout.workoutId,
@@ -720,42 +724,22 @@ function CalendarBoard({
               return (
                 <span className="calendar-pill" key={scheduledWorkout.id}>
                   {workout.name}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onStart(scheduledWorkout.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.stopPropagation();
-                        onStart(scheduledWorkout.id);
-                      }
-                    }}
+                  <button
+                    type="button"
+                    onClick={() => onStart(scheduledWorkout.id)}
                   >
                     Start
-                  </span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRemove(scheduledWorkout.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.stopPropagation();
-                        onRemove(scheduledWorkout.id);
-                      }
-                    }}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(scheduledWorkout.id)}
                   >
                     Remove
-                  </span>
+                  </button>
                 </span>
               );
             })}
-          </button>
+          </div>
         );
       })}
     </div>
