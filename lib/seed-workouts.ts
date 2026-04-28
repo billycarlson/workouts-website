@@ -1,6 +1,8 @@
 import type { ExerciseStep, ScheduledWorkout, WorkoutTemplate } from "./workout-types";
 
 const seededAt = "2026-04-28T00:00:00.000Z";
+const firstBlockNote =
+  "First 4 weeks: go very light. Use just the bar, light dumbbells, or bodyweight substitutions where possible. Prioritize form, joint comfort, and finishing the volume cleanly.";
 
 function header(id: string, label: string, detail: string): ExerciseStep {
   return { id, label, detail };
@@ -24,7 +26,7 @@ export const seedWorkouts: WorkoutTemplate[] = [
     updatedAt: seededAt,
     ocrText: "",
     cleanInstructions:
-      "Two giant sets of 4 rounds each. No rest between exercises within a giant set; rest only between rounds.",
+      `Two giant sets of 4 rounds each. No rest between exercises within a giant set; rest only between rounds. ${firstBlockNote}`,
     steps: [
       header("garage-week-1-arms-gs1", "Giant Set #1", "4 rounds. Move exercise to exercise with no rest; rest only after Reverse Grip Bench."),
       exercise("garage-week-1-arms-1", "Dumbbell Hammer Curls", "4", "20 reps", "no rest"),
@@ -41,9 +43,9 @@ export const seedWorkouts: WorkoutTemplate[] = [
     bodyAreas: ["biceps", "triceps", "forearms"],
     equipment: ["dumbbells", "barbell", "bench"],
     functionalFocus: ["strength endurance"],
-    intensity: "hard",
+    intensity: "moderate",
     durationMinutes: 45,
-    progressionNotes: "Keep giant-set flow. Change exercises later while preserving arm focus and round structure.",
+    progressionNotes: `Keep giant-set flow. Change exercises later while preserving arm focus and round structure. ${firstBlockNote}`,
     schedulingNotes: "Garage Program 2.0 — Week 1 Day 1.",
   },
   {
@@ -53,7 +55,7 @@ export const seedWorkouts: WorkoutTemplate[] = [
     updatedAt: seededAt,
     ocrText: "",
     cleanInstructions:
-      "Two giant sets of 4 rounds each. No rest between exercises within a giant set; rest only between rounds.",
+      `Two giant sets of 4 rounds each. No rest between exercises within a giant set; rest only between rounds. ${firstBlockNote}`,
     steps: [
       header("garage-week-1-shoulders-gs1", "Giant Set #1", "4 rounds. Move exercise to exercise with no rest; rest only after Around The Worlds."),
       exercise("garage-week-1-shoulders-1", "Incline Dumbbell Hammer Shoulder Press", "4", "20 reps", "no rest"),
@@ -70,9 +72,9 @@ export const seedWorkouts: WorkoutTemplate[] = [
     bodyAreas: ["shoulders", "front delts", "side delts", "rear delts", "traps"],
     equipment: ["dumbbells", "barbell", "incline bench", "weight plate"],
     functionalFocus: ["strength endurance"],
-    intensity: "hard",
+    intensity: "moderate",
     durationMinutes: 45,
-    progressionNotes: "Keep shoulder/trap focus. Swap movements later while preserving delt balance.",
+    progressionNotes: `Keep shoulder/trap focus. Swap movements later while preserving delt balance. ${firstBlockNote}`,
     schedulingNotes: "Garage Program 2.0 — Week 1 Day 2.",
   },
   {
@@ -82,7 +84,7 @@ export const seedWorkouts: WorkoutTemplate[] = [
     updatedAt: seededAt,
     ocrText: "",
     cleanInstructions:
-      "Two giant sets of 4 rounds each. No rest between exercises within a giant set; rest only after each round.",
+      `Two giant sets of 4 rounds each. No rest between exercises within a giant set; rest only after each round. ${firstBlockNote}`,
     steps: [
       header("garage-week-1-back-gs1", "Giant Set #1", "4 rounds. Move exercise to exercise with no rest; rest only after Wide Grip Pull-ups."),
       exercise("garage-week-1-back-1", "Bench Assisted \"Wide Grip\" Pull-ups", "4", "to failure", "no rest"),
@@ -99,9 +101,9 @@ export const seedWorkouts: WorkoutTemplate[] = [
     bodyAreas: ["lats", "mid-back", "rhomboids", "lower back"],
     equipment: ["pull-up bar", "dumbbells", "barbell", "bench", "T-bar"],
     functionalFocus: ["strength endurance"],
-    intensity: "hard",
+    intensity: "moderate",
     durationMinutes: 50,
-    progressionNotes: "Keep pulling volume high. Swap row/pull-up variations in later weeks.",
+    progressionNotes: `Keep pulling volume high. Swap row/pull-up variations in later weeks. ${firstBlockNote}`,
     schedulingNotes: "Garage Program 2.0 — Week 1 Day 3.",
   },
   {
@@ -111,7 +113,7 @@ export const seedWorkouts: WorkoutTemplate[] = [
     updatedAt: seededAt,
     ocrText: "",
     cleanInstructions:
-      "Three giant sets of 3 rounds each. No rest between exercises within a giant set; rest only after each round.",
+      `Three giant sets of 3 rounds each. No rest between exercises within a giant set; rest only after each round. ${firstBlockNote}`,
     steps: [
       header("garage-week-1-chest-gs1", "Giant Set #1", "3 rounds. Move exercise to exercise with no rest; rest only after Dips."),
       exercise("garage-week-1-chest-1", "Incline Dumbbell Bench Press", "3", "15 reps", "no rest"),
@@ -133,9 +135,9 @@ export const seedWorkouts: WorkoutTemplate[] = [
     bodyAreas: ["chest", "triceps", "abs", "hip flexors"],
     equipment: ["dumbbells", "barbell", "bench", "dip station", "pull-up bar"],
     functionalFocus: ["strength endurance", "core stability"],
-    intensity: "hard",
+    intensity: "moderate",
     durationMinutes: 55,
-    progressionNotes: "Keep chest/abs structure. Rotate press angles and ab variations later.",
+    progressionNotes: `Keep chest/abs structure. Rotate press angles and ab variations later. ${firstBlockNote}`,
     schedulingNotes: "Garage Program 2.0 — Week 1 Day 4.",
   },
   {
@@ -145,7 +147,7 @@ export const seedWorkouts: WorkoutTemplate[] = [
     updatedAt: seededAt,
     ocrText: "",
     cleanInstructions:
-      "First giant set is 4 rounds; second and third are 3 rounds. No rest between exercises within a giant set; rest only after each round.",
+      `First giant set is 4 rounds; second and third are 3 rounds. No rest between exercises within a giant set; rest only after each round. ${firstBlockNote}`,
     steps: [
       header("garage-week-1-legs-gs1", "Giant Set #1", "4 rounds. Move exercise to exercise with no rest; rest only after Monster Walk."),
       exercise("garage-week-1-legs-1", "High Bar Squat \"Heels Elevated\"", "4", "20 reps", "no rest"),
@@ -167,9 +169,9 @@ export const seedWorkouts: WorkoutTemplate[] = [
     bodyAreas: ["quads", "hamstrings", "glutes", "calves", "tibialis"],
     equipment: ["barbell", "dumbbells", "resistance band", "bench/box"],
     functionalFocus: ["strength endurance", "unilateral control"],
-    intensity: "hard",
+    intensity: "moderate",
     durationMinutes: 60,
-    progressionNotes: "Keep lower-body structure. Rotate squat, hinge, lunge, calf, and tibialis variations later.",
+    progressionNotes: `Keep lower-body structure. Rotate squat, hinge, lunge, calf, and tibialis variations later. ${firstBlockNote}`,
     schedulingNotes: "Garage Program 2.0 — Week 1 Day 5.",
   },
 ];

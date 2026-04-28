@@ -129,22 +129,29 @@ function statusLabel(status: WorkoutStatus) {
   return "Planned";
 }
 
+function isSeedId(id: string) {
+  return id.startsWith("seed-") || id.startsWith("garage-week-1-");
+}
+
 function hydrateStoredState(storedState: WorkoutAppState | undefined | null) {
   if (!storedState) {
     return starterState;
   }
 
-  if (storedState.workouts.length > 0) {
-    return storedState;
-  }
+  const customWorkouts = storedState.workouts.filter(
+    (workout) => !isSeedId(workout.id),
+  );
+  const customScheduled = storedState.scheduled.filter(
+    (scheduledWorkout) =>
+      !isSeedId(scheduledWorkout.id) && !isSeedId(scheduledWorkout.workoutId),
+  );
+  const selectedDate = storedState.selectedDate || todayIso;
 
   return {
     ...storedState,
-    workouts: seedWorkouts,
-    scheduled:
-      storedState.scheduled.length > 0
-        ? storedState.scheduled
-        : createSeedSchedule(storedState.selectedDate || todayIso),
+    selectedDate,
+    workouts: [...seedWorkouts, ...customWorkouts],
+    scheduled: [...createSeedSchedule(selectedDate), ...customScheduled],
   };
 }
 
