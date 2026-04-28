@@ -796,6 +796,18 @@ function ActiveWorkout({
   const progress = workout.steps.length
     ? `${Math.min(stepIndex + 1, workout.steps.length)} / ${workout.steps.length}`
     : "1 / 1";
+  const stepMetrics = step
+    ? [
+        step.targetSets ? { label: "Sets", value: step.targetSets } : null,
+        step.targetReps ? { label: "Reps", value: step.targetReps } : null,
+        step.restLabel || step.restSeconds !== undefined
+          ? {
+              label: "Rest",
+              value: step.restLabel ?? `${step.restSeconds}s`,
+            }
+          : null,
+      ].filter((metric): metric is { label: string; value: string } => Boolean(metric))
+    : [];
 
   function setStatus(status: WorkoutStatus) {
     onUpdate(scheduledWorkout.id, {
@@ -823,11 +835,17 @@ function ActiveWorkout({
           <div className="active-step">
             <p>{step.label}</p>
             {step.detail ? <span>{step.detail}</span> : null}
-            <div className="active-metrics">
-              <Metric label="Sets" value={step.targetSets || "3"} />
-              <Metric label="Reps" value={step.targetReps || "8-12"} />
-              <Metric label="Rest" value={`${step.restSeconds ?? 60}s`} />
-            </div>
+            {stepMetrics.length > 0 ? (
+              <div className="active-metrics">
+                {stepMetrics.map((metric) => (
+                  <Metric
+                    key={metric.label}
+                    label={metric.label}
+                    value={metric.value}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           <p className="active-step">

@@ -19,6 +19,7 @@ export type ExerciseStep = {
   targetSets?: string;
   targetReps?: string;
   restSeconds?: number;
+  restLabel?: string;
 };
 
 export type WorkoutTemplate = {
