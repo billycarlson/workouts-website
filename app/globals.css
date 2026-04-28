@@ -181,11 +181,8 @@ button {
 }
 
 .upload-card,
-.review-card,
 .workout-card,
-.today-list,
-.active-card,
-.screenshot-reference {
+.active-card {
   border: 1px solid var(--hairline-subtle);
   background: transparent;
 }
@@ -210,20 +207,16 @@ label select {
 }
 
 .upload-card p,
-.review-card p,
-.workout-card p,
-.today-list span {
+.workout-card p {
   color: var(--muted);
 }
 
-.review-grid,
 .workout-grid {
   display: grid;
   gap: clamp(1rem, 2vw, 1.5rem);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.review-card,
 .workout-card {
   display: flex;
   flex-direction: column;
@@ -231,18 +224,73 @@ label select {
   padding: 1rem;
 }
 
-.review-card img,
-.workout-card-media img,
-.screenshot-reference img {
-  display: block;
-  height: auto;
-  width: 100%;
+.import-log {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.review-card form {
+.import-row {
+  align-items: center;
+  border-top: 1px solid var(--hairline-subtle);
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.6rem 0;
+}
+
+.import-row .import-file {
+  font-weight: 700;
+}
+
+.import-row .import-status {
+  color: var(--muted);
+  font-size: 0.85rem;
+  grid-column: 1 / -1;
+}
+
+.import-row.is-failed .import-status {
+  color: var(--danger);
+}
+
+.import-row button {
+  background: transparent;
+  border-color: var(--hairline-subtle);
+  color: var(--foreground);
+  font-size: 0.72rem;
+  min-height: 36px;
+  padding: 0.45rem 0.7rem;
+}
+
+.hero-extra {
+  border-top: 1px solid var(--hairline-subtle);
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0.75rem 0 0;
+}
+
+.hero-extra li {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.hero-extra li span {
+  font-weight: 600;
+}
+
+.hero-extra li button {
+  background: transparent;
+  border-color: var(--hairline-subtle);
+  color: var(--foreground);
+  font-size: 0.72rem;
+  min-height: 36px;
+  padding: 0.45rem 0.7rem;
 }
 
 label,
@@ -263,14 +311,12 @@ legend {
   margin-bottom: 0.4rem;
 }
 
-.chip-grid,
 .tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
 }
 
-.chip-grid label,
 .tag-row span {
   border: 1px solid var(--hairline-subtle);
   color: var(--foreground);
@@ -279,12 +325,6 @@ legend {
   font-size: 0.78rem;
   gap: 0.35rem;
   padding: 0.35rem 0.55rem;
-}
-
-.form-split {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 button,
@@ -407,40 +447,6 @@ button:disabled {
   padding: 0.45rem 0.55rem;
 }
 
-.today-list {
-  display: grid;
-  gap: 0.5rem;
-  padding: 1rem;
-}
-
-.today-list h3 {
-  font-size: 1rem;
-  margin: 0 0 0.5rem;
-}
-
-.planned-row {
-  align-items: center;
-  border-top: 1px solid var(--hairline-subtle);
-  display: flex;
-  gap: 1rem;
-  justify-content: space-between;
-  padding-top: 0.75rem;
-}
-
-.planned-row div {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.workout-card-media {
-  align-items: center;
-  aspect-ratio: 4 / 3;
-  background: var(--surface-strong);
-  display: flex;
-  justify-content: center;
-  overflow: hidden;
-}
-
 .workout-card h3 {
   font-size: 1.4rem;
   letter-spacing: -0.015em;
@@ -559,16 +565,6 @@ button:disabled {
   color: var(--foreground);
 }
 
-.screenshot-reference {
-  padding: 1rem;
-}
-
-.screenshot-reference summary {
-  cursor: pointer;
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
-
 @media (max-width: 900px) {
   .hero-grid {
     display: flex;
@@ -576,7 +572,6 @@ button:disabled {
   }
 
   .hero-grid,
-  .review-grid,
   .workout-grid {
     grid-template-columns: 1fr;
   }
@@ -614,13 +609,11 @@ button:disabled {
   }
 
   .calendar-tools,
-  .backup-actions,
-  .planned-row {
+  .backup-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .form-split,
   .active-controls,
   .active-status,
   .active-metrics {
@@ -661,7 +654,6 @@ button:disabled {
 }
 
 .calendar-grid,
-.review-grid,
 .workout-grid {
   grid-template-columns: 1fr;
 }
@@ -705,7 +697,6 @@ button:disabled {
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 
-  .review-grid,
   .workout-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

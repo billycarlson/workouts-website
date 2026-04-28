@@ -9,9 +9,7 @@ import {
 } from "@/lib/local-store";
 import { createSeedSchedule, seedWorkouts } from "@/lib/seed-workouts";
 import {
-  movementPatternOptions,
   type ExerciseStep,
-  type MovementPattern,
   type ScheduledWorkout,
   type WorkoutAppState,
   type WorkoutImportDraft,
@@ -27,17 +25,6 @@ const starterState: WorkoutAppState = {
   imports: [],
   selectedDate: todayIso,
 };
-
-const functionalFocusOptions = [
-  "strength endurance",
-  "mobility",
-  "core stability",
-  "balance",
-  "unilateral control",
-  "power",
-  "conditioning",
-  "recovery",
-];
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = [
@@ -61,22 +48,6 @@ function toDateInputValue(date: Date) {
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
-}
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-function splitCsv(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
 
 function parseExerciseSteps(text: string): ExerciseStep[] {
@@ -147,11 +118,18 @@ function hydrateStoredState(storedState: WorkoutAppState | undefined | null) {
   );
   const selectedDate = storedState.selectedDate || todayIso;
 
+  const cleanedWorkouts = [...seedWorkouts, ...customWorkouts].map((workout) => {
+    const clone: Record<string, unknown> = { ...workout };
+    delete clone.screenshotDataUrl;
+    return clone as WorkoutTemplate;
+  });
+
   return {
     ...storedState,
     selectedDate,
-    workouts: [...seedWorkouts, ...customWorkouts],
+    workouts: cleanedWorkouts,
     scheduled: [...createSeedSchedule(selectedDate), ...customScheduled],
+    imports: [],
   };
 }
 
@@ -226,10 +204,8 @@ export function WorkoutApp() {
     if (!files?.length) return;
 
     const fileList = Array.from(files);
-    setOcrProgress("Reading screenshots...");
 
     for (const file of fileList) {
-      const imageDataUrl = await readFileAsDataUrl(file);
       const draftId = createId("import");
 
       updateState((current) => ({
@@ -238,7 +214,6 @@ export function WorkoutApp() {
           {
             id: draftId,
             fileName: file.name,
-            imageDataUrl,
             ocrText: "",
             status: "processing",
           },
@@ -248,20 +223,45 @@ export function WorkoutApp() {
 
       try {
         const Tesseract = await import("tesseract.js");
-        setOcrProgress(`Extracting text from ${file.name}...`);
+        setOcrProgress(`Reading ${file.name}...`);
         const result = await Tesseract.recognize(file, "eng", {
           logger(message) {
-            if (message.status) {
-              setOcrProgress(`${message.status} ${Math.round((message.progress ?? 0) * 100)}%`);
+            if (message.status === "recognizing text") {
+              setOcrProgress(
+                `Reading ${file.name} (${Math.round((message.progress ?? 0) * 100)}%)`,
+              );
             }
           },
         });
 
+        const ocrText = result.data.text;
+        const now = new Date().toISOString();
+        const workout: WorkoutTemplate = {
+          id: createId("workout"),
+          name: getWorkoutName(ocrText, file.name),
+          createdAt: now,
+          updatedAt: now,
+          ocrText,
+          cleanInstructions: ocrText.trim(),
+          steps: parseExerciseSteps(ocrText),
+          movementPatterns: [],
+          bodyAreas: [],
+          equipment: [],
+          functionalFocus: [],
+          intensity: "moderate",
+        };
+
         updateState((current) => ({
           ...current,
+          workouts: [workout, ...current.workouts],
           imports: current.imports.map((draft) =>
             draft.id === draftId
-              ? { ...draft, ocrText: result.data.text, status: "ready" }
+              ? {
+                  ...draft,
+                  ocrText,
+                  status: "reviewed",
+                  workoutId: workout.id,
+                }
               : draft,
           ),
         }));
@@ -290,36 +290,10 @@ export function WorkoutApp() {
     }
   }
 
-  function saveDraftAsWorkout(draft: WorkoutImportDraft, formData: FormData) {
-    const now = new Date().toISOString();
-    const cleanInstructions = String(formData.get("cleanInstructions") || "");
-    const movementPatterns = formData.getAll("movementPatterns") as MovementPattern[];
-
-    const workout: WorkoutTemplate = {
-      id: createId("workout"),
-      name: String(formData.get("name") || getWorkoutName(draft.ocrText, draft.fileName)),
-      createdAt: now,
-      updatedAt: now,
-      screenshotDataUrl: draft.imageDataUrl,
-      ocrText: draft.ocrText,
-      cleanInstructions,
-      steps: parseExerciseSteps(cleanInstructions || draft.ocrText),
-      movementPatterns,
-      bodyAreas: splitCsv(String(formData.get("bodyAreas") || "")),
-      equipment: splitCsv(String(formData.get("equipment") || "")),
-      functionalFocus: formData.getAll("functionalFocus").map(String),
-      intensity: String(formData.get("intensity") || "moderate") as WorkoutTemplate["intensity"],
-      durationMinutes: Number(formData.get("durationMinutes")) || undefined,
-      progressionNotes: String(formData.get("progressionNotes") || ""),
-      schedulingNotes: String(formData.get("schedulingNotes") || ""),
-    };
-
+  function dismissImport(id: string) {
     updateState((current) => ({
       ...current,
-      workouts: [workout, ...current.workouts],
-      imports: current.imports.map((item) =>
-        item.id === draft.id ? { ...item, status: "reviewed" } : item,
-      ),
+      imports: current.imports.filter((draft) => draft.id !== id),
     }));
   }
 
@@ -391,55 +365,65 @@ export function WorkoutApp() {
     );
   }
 
+  const additionalSelectedWorkouts = primaryScheduledWorkout
+    ? selectedDateWorkouts.filter(
+        (scheduledWorkout) => scheduledWorkout.id !== primaryScheduledWorkout.id,
+      )
+    : [];
+
   return (
     <main className="book-shell">
       <section className="hero-grid today-hero">
         <div className="hero-copy">
           <p className="eyebrow">
-            {selectedDateLabel.day} / {selectedDateLabel.month}
+            {selectedDateLabel.day} {selectedDateLabel.number} / {selectedDateLabel.month}
           </p>
           <h1>{primaryWorkout ? primaryWorkout.name : "Today's workout"}</h1>
           {primaryWorkout && primaryScheduledWorkout ? (
-            <>
-              <p>{primaryWorkout.cleanInstructions.slice(0, 180)}</p>
-              <div className="hero-actions">
-                <button
-                  type="button"
-                  onClick={() => setActiveScheduleId(primaryScheduledWorkout.id)}
-                >
-                  Start workout
-                </button>
-                <span>{statusLabel(primaryScheduledWorkout.status)}</span>
-              </div>
-            </>
+            <div className="hero-actions">
+              <button
+                type="button"
+                onClick={() => setActiveScheduleId(primaryScheduledWorkout.id)}
+              >
+                Start workout
+              </button>
+              <span>{statusLabel(primaryScheduledWorkout.status)}</span>
+            </div>
           ) : (
-            <>
-              <p>Nothing scheduled yet. Pick a workout from the library below.</p>
-              <div className="hero-actions">
-                <a href="#library">Choose workout</a>
-                <a href="#schedule">Open calendar</a>
-              </div>
-            </>
+            <div className="hero-actions">
+              <a href="#library">Choose workout</a>
+              <a href="#schedule">Open calendar</a>
+            </div>
           )}
-        </div>
-      </section>
+          {additionalSelectedWorkouts.length > 0 ? (
+            <ul className="hero-extra">
+              {additionalSelectedWorkouts.map((scheduledWorkout) => {
+                const workout = state.workouts.find(
+                  (item) => item.id === scheduledWorkout.workoutId,
+                );
 
-      <section className="section-block">
-        <div className="section-heading">
-          <span>01</span>
-          <h2>Today</h2>
+                if (!workout) return null;
+
+                return (
+                  <li key={scheduledWorkout.id}>
+                    <span>{workout.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveScheduleId(scheduledWorkout.id)}
+                    >
+                      Start
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
-        <SelectedDateList
-          scheduledWorkouts={selectedDateWorkouts}
-          workouts={state.workouts}
-          selectedDate={state.selectedDate}
-          onStart={(id) => setActiveScheduleId(id)}
-        />
       </section>
 
       <section className="section-block" id="schedule">
         <div className="section-heading">
-          <span>02</span>
+          <span>01</span>
           <h2>Calendar</h2>
         </div>
         <div className="calendar-tools">
@@ -487,7 +471,7 @@ export function WorkoutApp() {
 
       <section className="section-block" id="library">
         <div className="section-heading">
-          <span>03</span>
+          <span>02</span>
           <h2>Workout library</h2>
         </div>
         <div className="workout-grid">
@@ -499,187 +483,81 @@ export function WorkoutApp() {
             />
           ))}
           {state.workouts.length === 0 ? (
-            <p className="empty-copy">
-              No workouts saved yet.
-            </p>
+            <p className="empty-copy">No workouts saved yet.</p>
           ) : null}
         </div>
       </section>
 
       <section className="section-block" id="import">
         <div className="section-heading">
-          <span>04</span>
-          <h2>Add workouts</h2>
+          <span>03</span>
+          <h2>Add from screenshot</h2>
         </div>
         <div className="upload-card">
-          <input
-            ref={importFileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(event) => void handleScreenshotUpload(event.target.files)}
-          />
+          <label className="upload-input">
+            Upload one or more screenshots
+            <input
+              ref={importFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(event) => void handleScreenshotUpload(event.target.files)}
+            />
+          </label>
           {ocrProgress ? <strong>{ocrProgress}</strong> : null}
         </div>
 
-        <div className="review-grid">
-          {state.imports.map((draft) => (
-            <ImportReviewCard
-              key={draft.id}
-              draft={draft}
-              onSave={saveDraftAsWorkout}
-            />
-          ))}
-          {state.imports.length === 0 ? (
-            <p className="empty-copy">Upload screenshots when you are ready.</p>
-          ) : null}
-        </div>
+        {state.imports.length > 0 ? (
+          <ul className="import-log">
+            {state.imports.map((draft) => (
+              <ImportLogRow
+                key={draft.id}
+                draft={draft}
+                workout={
+                  draft.workoutId
+                    ? state.workouts.find((item) => item.id === draft.workoutId) ?? null
+                    : null
+                }
+                onDismiss={() => dismissImport(draft.id)}
+              />
+            ))}
+          </ul>
+        ) : null}
       </section>
     </main>
   );
 }
 
-function SelectedDateList({
-  scheduledWorkouts,
-  workouts,
-  selectedDate,
-  onStart,
-}: {
-  scheduledWorkouts: ScheduledWorkout[];
-  workouts: WorkoutTemplate[];
-  selectedDate: string;
-  onStart: (id: string) => void;
-}) {
-  return (
-    <div className="today-list">
-      <h3>{selectedDate}</h3>
-      {scheduledWorkouts.map((scheduledWorkout) => {
-        const workout = workouts.find(
-          (item) => item.id === scheduledWorkout.workoutId,
-        );
-
-        if (!workout) return null;
-
-        return (
-          <div className="planned-row" key={scheduledWorkout.id}>
-            <div>
-              <strong>{workout.name}</strong>
-              <span>{statusLabel(scheduledWorkout.status)}</span>
-            </div>
-            <button type="button" onClick={() => onStart(scheduledWorkout.id)}>
-              Start
-            </button>
-          </div>
-        );
-      })}
-      {scheduledWorkouts.length === 0 ? (
-        <p className="empty-copy">No workout scheduled for this day.</p>
-      ) : null}
-    </div>
-  );
-}
-
-function ImportReviewCard({
+function ImportLogRow({
   draft,
-  onSave,
+  workout,
+  onDismiss,
 }: {
   draft: WorkoutImportDraft;
-  onSave: (draft: WorkoutImportDraft, formData: FormData) => void;
+  workout: WorkoutTemplate | null;
+  onDismiss: () => void;
 }) {
-  if (draft.status === "reviewed") {
-    return (
-      <article className="review-card is-reviewed">
-        <strong>{draft.fileName}</strong>
-        <p>Added to library.</p>
-      </article>
-    );
+  let status: string;
+  if (draft.status === "processing") {
+    status = "Reading screenshot...";
+  } else if (draft.status === "failed") {
+    status = draft.error || "OCR failed";
+  } else if (workout) {
+    status = `Added: ${workout.name}`;
+  } else {
+    status = "Added to library";
   }
 
   return (
-    <article className="review-card">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={draft.imageDataUrl} alt={`Workout screenshot ${draft.fileName}`} />
-      <form
-        action={(formData) => {
-          onSave(draft, formData);
-        }}
-      >
-        <label>
-          Name
-          <input
-            name="name"
-            defaultValue={getWorkoutName(draft.ocrText, draft.fileName)}
-          />
-        </label>
-        <label>
-          Clean instructions
-          <textarea
-            name="cleanInstructions"
-            rows={7}
-            defaultValue={draft.ocrText}
-            placeholder="Review OCR text and rewrite it into usable workout steps."
-          />
-        </label>
-        <fieldset>
-          <legend>Movement patterns</legend>
-          <div className="chip-grid">
-            {movementPatternOptions.map((pattern) => (
-              <label key={pattern}>
-                <input type="checkbox" name="movementPatterns" value={pattern} />
-                {pattern}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Functional focus</legend>
-          <div className="chip-grid">
-            {functionalFocusOptions.map((focus) => (
-              <label key={focus}>
-                <input type="checkbox" name="functionalFocus" value={focus} />
-                {focus}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div className="form-split">
-          <label>
-            Body areas
-            <input name="bodyAreas" placeholder="chest, hips, core" />
-          </label>
-          <label>
-            Equipment
-            <input name="equipment" placeholder="dumbbells, bench" />
-          </label>
-        </div>
-        <div className="form-split">
-          <label>
-            Intensity
-            <select name="intensity" defaultValue="moderate">
-              <option value="easy">Easy</option>
-              <option value="moderate">Moderate</option>
-              <option value="hard">Hard</option>
-            </select>
-          </label>
-          <label>
-            Minutes
-            <input name="durationMinutes" type="number" min="1" />
-          </label>
-        </div>
-        <label>
-          Progression notes
-          <textarea name="progressionNotes" rows={2} />
-        </label>
-        <label>
-          Scheduling notes
-          <textarea name="schedulingNotes" rows={2} />
-        </label>
-        {draft.status === "failed" ? <p className="error-copy">{draft.error}</p> : null}
-        <button type="submit" disabled={draft.status === "processing"}>
-          {draft.status === "processing" ? "OCR running..." : "Add to library"}
+    <li className={`import-row ${draft.status === "failed" ? "is-failed" : ""}`}>
+      <span className="import-file">{draft.fileName}</span>
+      <span className="import-status">{status}</span>
+      {draft.status !== "processing" ? (
+        <button type="button" onClick={onDismiss}>
+          Dismiss
         </button>
-      </form>
-    </article>
+      ) : null}
+    </li>
   );
 }
 
@@ -719,7 +597,6 @@ function CalendarBoard({
               <span className="day-name">{label.day}</span>
               <span className="day-number">{label.number}</span>
               <span className="day-month">{label.month}</span>
-              <span className="day-count">{dayWorkouts.length} planned</span>
             </button>
             {dayWorkouts.map((scheduledWorkout) => {
               const workout = workouts.find(
@@ -760,26 +637,18 @@ function WorkoutCard({
   workout: WorkoutTemplate;
   onSchedule: () => void;
 }) {
+  const tags = [...workout.movementPatterns, ...workout.bodyAreas].slice(0, 5);
+
   return (
     <article className="workout-card">
-      <div className="workout-card-media">
-        {workout.screenshotDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={workout.screenshotDataUrl} alt="" />
-        ) : (
-          <span>{workout.movementPatterns[0] || "workout"}</span>
-        )}
-      </div>
-      <div>
-        <p className="eyebrow">{workout.movementPatterns.join(" / ") || "untagged"}</p>
-        <h3>{workout.name}</h3>
-        <p>{workout.cleanInstructions.slice(0, 180)}</p>
+      <h3>{workout.name}</h3>
+      {tags.length > 0 ? (
         <div className="tag-row">
-          {[...workout.functionalFocus, ...workout.bodyAreas].slice(0, 5).map((tag) => (
+          {tags.map((tag) => (
             <span key={tag}>{tag}</span>
           ))}
         </div>
-      </div>
+      ) : null}
       <button type="button" onClick={onSchedule}>
         Schedule on selected date
       </button>
@@ -832,7 +701,6 @@ function ActiveWorkout({
         <span>{scheduledWorkout.date}</span>
       </div>
       <section className="active-card">
-        <p className="eyebrow">Active workout</p>
         <h1>{workout.name}</h1>
         <div className="active-number-row">
           <span className="active-number">{progress}</span>
@@ -856,7 +724,7 @@ function ActiveWorkout({
           </div>
         ) : (
           <p className="active-step">
-            {workout.cleanInstructions || "No parsed steps yet. Use the screenshot reference."}
+            {workout.cleanInstructions || "No parsed steps yet."}
           </p>
         )}
         <div className="active-controls">
@@ -904,13 +772,6 @@ function ActiveWorkout({
           />
         </label>
       </section>
-      {workout.screenshotDataUrl ? (
-        <details className="screenshot-reference">
-          <summary>Original screenshot</summary>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={workout.screenshotDataUrl} alt="" />
-        </details>
-      ) : null}
     </main>
   );
 }

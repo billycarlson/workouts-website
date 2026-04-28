@@ -27,7 +27,6 @@ export type WorkoutTemplate = {
   name: string;
   createdAt: string;
   updatedAt: string;
-  screenshotDataUrl?: string;
   ocrText: string;
   cleanInstructions: string;
   steps: ExerciseStep[];
@@ -54,9 +53,9 @@ export type ScheduledWorkout = {
 export type WorkoutImportDraft = {
   id: string;
   fileName: string;
-  imageDataUrl: string;
   ocrText: string;
-  status: "ready" | "processing" | "reviewed" | "failed";
+  status: "processing" | "reviewed" | "failed";
+  workoutId?: string;
   error?: string;
 };
 
