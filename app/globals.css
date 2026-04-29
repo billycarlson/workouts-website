@@ -705,3 +705,77 @@ button:disabled {
     font-size: clamp(3.5rem, 8vw, 7rem);
   }
 }
+
+.home-shell {
+  position: relative;
+}
+
+.home-topbar,
+.view-topbar {
+  align-items: center;
+  border-bottom: 1px solid var(--hairline-subtle);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+}
+
+.view-topbar h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.view-topbar a {
+  color: var(--foreground);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.menu-button {
+  background: transparent;
+  border-color: var(--hairline-subtle);
+  color: var(--foreground);
+  min-height: 36px;
+  padding: 0.45rem 0.7rem;
+}
+
+.menu-overlay {
+  background: rgba(0, 0, 0, 0.32);
+  border: 0;
+  inset: 0;
+  position: fixed;
+  z-index: 20;
+}
+
+.menu-drawer {
+  background: var(--background);
+  border-left: 1px solid var(--hairline-subtle);
+  display: grid;
+  gap: 1rem;
+  inset: 0 0 0 auto;
+  max-width: min(88vw, 360px);
+  padding: 1rem;
+  position: fixed;
+  width: 100%;
+  z-index: 21;
+}
+
+.menu-links {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.menu-links a {
+  border: 1px solid var(--hairline-subtle);
+  color: var(--foreground);
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  text-decoration: none;
+  text-transform: uppercase;
+}

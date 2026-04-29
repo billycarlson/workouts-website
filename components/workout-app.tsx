@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   exportWorkoutState,
@@ -18,6 +19,8 @@ import {
 } from "@/lib/workout-types";
 
 const todayIso = toDateInputValue(new Date());
+
+type WorkoutAppView = "home" | "calendar" | "library" | "import";
 
 const starterState: WorkoutAppState = {
   workouts: seedWorkouts,
@@ -118,26 +121,21 @@ function hydrateStoredState(storedState: WorkoutAppState | undefined | null) {
   );
   const selectedDate = storedState.selectedDate || todayIso;
 
-  const cleanedWorkouts = [...seedWorkouts, ...customWorkouts].map((workout) => {
-    const clone: Record<string, unknown> = { ...workout };
-    delete clone.screenshotDataUrl;
-    return clone as WorkoutTemplate;
-  });
-
   return {
     ...storedState,
     selectedDate,
-    workouts: cleanedWorkouts,
+    workouts: [...seedWorkouts, ...customWorkouts],
     scheduled: [...createSeedSchedule(selectedDate), ...customScheduled],
-    imports: [],
   };
 }
 
-export function WorkoutApp() {
+export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
   const [state, setState] = useState<WorkoutAppState>(starterState);
   const [loaded, setLoaded] = useState(false);
   const [ocrProgress, setOcrProgress] = useState("");
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -166,19 +164,18 @@ export function WorkoutApp() {
     }
   }, [loaded, state]);
 
-  const selectedDateWorkouts = useMemo(
-    () =>
-      state.scheduled.filter(
-        (scheduledWorkout) => scheduledWorkout.date === state.selectedDate,
-      ),
-    [state.scheduled, state.selectedDate],
+  const todayWorkouts = useMemo(
+    () => state.scheduled.filter((scheduledWorkout) => scheduledWorkout.date === todayIso),
+    [state.scheduled],
   );
 
   const selectedDateLabel = getDayLabel(state.selectedDate);
-  const primaryScheduledWorkout = selectedDateWorkouts[0] ?? null;
-  const primaryWorkout = primaryScheduledWorkout
+  const todayLabel = getDayLabel(todayIso);
+
+  const primaryTodayScheduledWorkout = todayWorkouts[0] ?? null;
+  const primaryTodayWorkout = primaryTodayScheduledWorkout
     ? state.workouts.find(
-        (workout) => workout.id === primaryScheduledWorkout.workoutId,
+        (workout) => workout.id === primaryTodayScheduledWorkout.workoutId,
       )
     : null;
 
@@ -297,11 +294,11 @@ export function WorkoutApp() {
     }));
   }
 
-  function scheduleWorkout(workoutId: string) {
+  function scheduleWorkout(workoutId: string, date: string) {
     const scheduledWorkout: ScheduledWorkout = {
       id: createId("scheduled"),
       workoutId,
-      date: state.selectedDate,
+      date,
       status: "planned",
       activeStepIndex: 0,
     };
@@ -310,6 +307,26 @@ export function WorkoutApp() {
       ...current,
       scheduled: [...current.scheduled, scheduledWorkout],
     }));
+  }
+
+  function setWorkoutForToday(workoutId: string) {
+    const scheduledWorkout: ScheduledWorkout = {
+      id: createId("scheduled"),
+      workoutId,
+      date: todayIso,
+      status: "planned",
+      activeStepIndex: 0,
+    };
+
+    updateState((current) => ({
+      ...current,
+      selectedDate: todayIso,
+      scheduled: [
+        ...current.scheduled.filter((scheduledWorkoutItem) => scheduledWorkoutItem.date !== todayIso),
+        scheduledWorkout,
+      ],
+    }));
+    setChooserOpen(false);
   }
 
   function updateScheduledWorkout(
@@ -365,134 +382,235 @@ export function WorkoutApp() {
     );
   }
 
-  const additionalSelectedWorkouts = primaryScheduledWorkout
-    ? selectedDateWorkouts.filter(
-        (scheduledWorkout) => scheduledWorkout.id !== primaryScheduledWorkout.id,
+  const additionalTodayWorkouts = primaryTodayScheduledWorkout
+    ? todayWorkouts.filter(
+        (scheduledWorkout) => scheduledWorkout.id !== primaryTodayScheduledWorkout.id,
       )
     : [];
 
-  return (
-    <main className="book-shell">
-      <section className="hero-grid today-hero">
-        <div className="hero-copy">
-          <p className="eyebrow">
-            {selectedDateLabel.day} {selectedDateLabel.number} / {selectedDateLabel.month}
-          </p>
-          <h1>{primaryWorkout ? primaryWorkout.name : "Today's workout"}</h1>
-          {primaryWorkout && primaryScheduledWorkout ? (
-            <div className="hero-actions">
+  if (view === "home") {
+    return (
+      <main className="book-shell home-shell">
+        <header className="home-topbar">
+          <button type="button" className="menu-button" onClick={() => setMenuOpen(true)}>
+            Menu
+          </button>
+          <span>
+            {todayLabel.day} {todayLabel.number} {todayLabel.month}
+          </span>
+        </header>
+
+        <section className="hero-grid today-hero">
+          <div className="hero-copy">
+            <p className="eyebrow">Today&apos;s workout</p>
+            <h1>{primaryTodayWorkout ? primaryTodayWorkout.name : "No workout scheduled"}</h1>
+            {primaryTodayWorkout && primaryTodayScheduledWorkout ? (
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  onClick={() => setActiveScheduleId(primaryTodayScheduledWorkout.id)}
+                >
+                  Start workout
+                </button>
+                <span>{statusLabel(primaryTodayScheduledWorkout.status)}</span>
+              </div>
+            ) : (
+              <div className="hero-actions">
+                <button type="button" onClick={() => setChooserOpen(true)}>
+                  Choose workout for today
+                </button>
+                <Link href="/calendar">Open calendar</Link>
+              </div>
+            )}
+
+            {additionalTodayWorkouts.length > 0 ? (
+              <ul className="hero-extra">
+                {additionalTodayWorkouts.map((scheduledWorkout) => {
+                  const workout = state.workouts.find(
+                    (item) => item.id === scheduledWorkout.workoutId,
+                  );
+                  if (!workout) return null;
+
+                  return (
+                    <li key={scheduledWorkout.id}>
+                      <span>{workout.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveScheduleId(scheduledWorkout.id)}
+                      >
+                        Start
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
+        </section>
+
+        {chooserOpen ? (
+          <section className="section-block">
+            <div className="section-heading">
+              <span>01</span>
+              <h2>Choose today&apos;s workout</h2>
+            </div>
+            <div className="workout-grid">
+              {state.workouts.map((workout) => (
+                <WorkoutCard
+                  key={workout.id}
+                  workout={workout}
+                  scheduleLabel="Set as today&apos;s workout"
+                  onSchedule={() => setWorkoutForToday(workout.id)}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {menuOpen ? (
+          <>
+            <button
+              type="button"
+              className="menu-overlay"
+              aria-label="Close menu"
+              onClick={() => setMenuOpen(false)}
+            />
+            <aside className="menu-drawer">
+              <button type="button" onClick={() => setMenuOpen(false)}>
+                Close
+              </button>
+              <nav className="menu-links">
+                <Link href="/">Today</Link>
+                <Link href="/calendar">Open calendar</Link>
+                <Link href="/library">Workout library</Link>
+                <Link href="/import">Add from screenshot</Link>
+              </nav>
               <button
                 type="button"
-                onClick={() => setActiveScheduleId(primaryScheduledWorkout.id)}
+                onClick={() => {
+                  setChooserOpen(true);
+                  setMenuOpen(false);
+                }}
               >
-                Start workout
+                Choose workout of the day
               </button>
-              <span>{statusLabel(primaryScheduledWorkout.status)}</span>
-            </div>
-          ) : (
-            <div className="hero-actions">
-              <a href="#library">Choose workout</a>
-              <a href="#schedule">Open calendar</a>
-            </div>
-          )}
-          {additionalSelectedWorkouts.length > 0 ? (
-            <ul className="hero-extra">
-              {additionalSelectedWorkouts.map((scheduledWorkout) => {
-                const workout = state.workouts.find(
-                  (item) => item.id === scheduledWorkout.workoutId,
-                );
+            </aside>
+          </>
+        ) : null}
+      </main>
+    );
+  }
 
-                if (!workout) return null;
+  if (view === "calendar") {
+    return (
+      <main className="book-shell">
+        <header className="view-topbar">
+          <Link href="/">Back to today</Link>
+          <h1>Calendar</h1>
+        </header>
 
-                return (
-                  <li key={scheduledWorkout.id}>
-                    <span>{workout.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveScheduleId(scheduledWorkout.id)}
-                    >
-                      Start
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="section-block" id="schedule">
-        <div className="section-heading">
-          <span>01</span>
-          <h2>Calendar</h2>
-        </div>
-        <div className="calendar-tools">
-          <label>
-            Selected date
-            <input
-              type="date"
-              value={state.selectedDate}
-              onChange={(event) =>
-                updateState((current) => ({
-                  ...current,
-                  selectedDate: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <div className="backup-actions">
-            <button type="button" onClick={handleExport}>
-              Export data
-            </button>
-            <label className="import-backup">
-              Import backup
+        <section className="section-block">
+          <div className="calendar-tools">
+            <label>
+              Selected date
               <input
-                type="file"
-                accept="application/json"
+                type="date"
+                value={state.selectedDate}
                 onChange={(event) =>
-                  void handleImportBackup(event.target.files?.[0])
+                  updateState((current) => ({
+                    ...current,
+                    selectedDate: event.target.value,
+                  }))
                 }
               />
             </label>
+            <div className="backup-actions">
+              <button type="button" onClick={handleExport}>
+                Export data
+              </button>
+              <label className="import-backup">
+                Import backup
+                <input
+                  type="file"
+                  accept="application/json"
+                  onChange={(event) =>
+                    void handleImportBackup(event.target.files?.[0])
+                  }
+                />
+              </label>
+            </div>
           </div>
-        </div>
-        <CalendarBoard
-          days={getCalendarDays(state.selectedDate)}
-          selectedDate={state.selectedDate}
-          scheduled={state.scheduled}
-          workouts={state.workouts}
-          onSelectDate={(date) =>
-            updateState((current) => ({ ...current, selectedDate: date }))
-          }
-          onStart={(id) => setActiveScheduleId(id)}
-          onRemove={removeScheduledWorkout}
-        />
-      </section>
 
-      <section className="section-block" id="library">
-        <div className="section-heading">
-          <span>02</span>
-          <h2>Workout library</h2>
-        </div>
-        <div className="workout-grid">
-          {state.workouts.map((workout) => (
-            <WorkoutCard
-              key={workout.id}
-              workout={workout}
-              onSchedule={() => scheduleWorkout(workout.id)}
-            />
-          ))}
-          {state.workouts.length === 0 ? (
-            <p className="empty-copy">No workouts saved yet.</p>
-          ) : null}
-        </div>
-      </section>
+          <CalendarBoard
+            days={getCalendarDays(state.selectedDate)}
+            selectedDate={state.selectedDate}
+            scheduled={state.scheduled}
+            workouts={state.workouts}
+            onSelectDate={(date) =>
+              updateState((current) => ({ ...current, selectedDate: date }))
+            }
+            onStart={(id) => setActiveScheduleId(id)}
+            onRemove={removeScheduledWorkout}
+          />
+        </section>
+      </main>
+    );
+  }
 
-      <section className="section-block" id="import">
-        <div className="section-heading">
-          <span>03</span>
-          <h2>Add from screenshot</h2>
-        </div>
+  if (view === "library") {
+    return (
+      <main className="book-shell">
+        <header className="view-topbar">
+          <Link href="/">Back to today</Link>
+          <h1>Workout library</h1>
+        </header>
+
+        <section className="section-block">
+          <div className="calendar-tools">
+            <label>
+              Schedule date
+              <input
+                type="date"
+                value={state.selectedDate}
+                onChange={(event) =>
+                  updateState((current) => ({
+                    ...current,
+                    selectedDate: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <span className="eyebrow">
+              {selectedDateLabel.day} {selectedDateLabel.number} / {selectedDateLabel.month}
+            </span>
+          </div>
+
+          <div className="workout-grid">
+            {state.workouts.map((workout) => (
+              <WorkoutCard
+                key={workout.id}
+                workout={workout}
+                scheduleLabel="Schedule on selected date"
+                onSchedule={() => scheduleWorkout(workout.id, state.selectedDate)}
+              />
+            ))}
+            {state.workouts.length === 0 ? (
+              <p className="empty-copy">No workouts saved yet.</p>
+            ) : null}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="book-shell">
+      <header className="view-topbar">
+        <Link href="/">Back to today</Link>
+        <h1>Add from screenshot</h1>
+      </header>
+
+      <section className="section-block">
         <div className="upload-card">
           <label className="upload-input">
             Upload one or more screenshots
@@ -633,9 +751,11 @@ function CalendarBoard({
 function WorkoutCard({
   workout,
   onSchedule,
+  scheduleLabel,
 }: {
   workout: WorkoutTemplate;
   onSchedule: () => void;
+  scheduleLabel: string;
 }) {
   const tags = [...workout.movementPatterns, ...workout.bodyAreas].slice(0, 5);
 
@@ -650,7 +770,7 @@ function WorkoutCard({
         </div>
       ) : null}
       <button type="button" onClick={onSchedule}>
-        Schedule on selected date
+        {scheduleLabel}
       </button>
     </article>
   );
@@ -670,7 +790,7 @@ function ActiveWorkout({
   const stepIndex = scheduledWorkout.activeStepIndex ?? 0;
   const step = workout.steps[stepIndex] ?? workout.steps[0];
   const progress = workout.steps.length
-    ? `${Math.min(stepIndex + 1, workout.steps.length)} / ${workout.steps.length}`
+    ? `${Math.min(stepIndex + 1, workout.steps.length)}/${workout.steps.length}`
     : "1 / 1";
   const stepMetrics = step
     ? [
@@ -696,7 +816,7 @@ function ActiveWorkout({
     <main className="active-mode">
       <div className="active-topbar">
         <button type="button" onClick={onBack}>
-          Back to calendar
+          Back
         </button>
         <span>{scheduledWorkout.date}</span>
       </div>
@@ -779,8 +899,8 @@ function ActiveWorkout({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="metric">
-      <span>{value}</span>
       <small>{label}</small>
+      <span>{value}</span>
     </div>
   );
 }
