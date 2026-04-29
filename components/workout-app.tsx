@@ -159,6 +159,20 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
   }, []);
 
   useEffect(() => {
+    const hash = window.location.hash.toLowerCase();
+    const hashRoutes: Record<string, string> = {
+      "#library": "/library",
+      "#schedule": "/calendar",
+      "#import": "/import",
+    };
+
+    const targetPath = hashRoutes[hash];
+    if (targetPath) {
+      window.location.replace(targetPath);
+    }
+  }, []);
+
+  useEffect(() => {
     if (loaded) {
       void saveWorkoutState(state);
     }
