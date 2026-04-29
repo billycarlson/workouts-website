@@ -791,7 +791,7 @@ function ActiveWorkout({
   const step = workout.steps[stepIndex] ?? workout.steps[0];
   const progress = workout.steps.length
     ? `${Math.min(stepIndex + 1, workout.steps.length)}/${workout.steps.length}`
-    : "1 / 1";
+    : "1/1";
   const stepMetrics = step
     ? [
         step.targetSets ? { label: "Sets", value: step.targetSets } : null,
@@ -847,9 +847,10 @@ function ActiveWorkout({
             {workout.cleanInstructions || "No parsed steps yet."}
           </p>
         )}
-        <div className="active-controls">
+        <div className="active-primary-controls">
           <button
             type="button"
+            className="active-secondary-action"
             onClick={() =>
               onUpdate(scheduledWorkout.id, {
                 activeStepIndex: Math.max(stepIndex - 1, 0),
@@ -860,26 +861,30 @@ function ActiveWorkout({
           </button>
           <button
             type="button"
+            className="active-primary-action"
             onClick={() =>
               onUpdate(scheduledWorkout.id, {
                 activeStepIndex: Math.min(stepIndex + 1, workout.steps.length - 1),
               })
             }
           >
-            Next step
+            Next
           </button>
         </div>
-        <div className="active-status">
-          <button type="button" onClick={() => setStatus("done")}>
-            Done
-          </button>
-          <button type="button" onClick={() => setStatus("modified")}>
-            Modified
-          </button>
-          <button type="button" onClick={() => setStatus("skipped")}>
-            Skip
-          </button>
-        </div>
+        <details className="active-finish">
+          <summary>Finish workout</summary>
+          <div className="active-finish-actions">
+            <button type="button" onClick={() => setStatus("done")}>
+              Done
+            </button>
+            <button type="button" onClick={() => setStatus("modified")}>
+              Modified
+            </button>
+            <button type="button" onClick={() => setStatus("skipped")}>
+              Skip
+            </button>
+          </div>
+        </details>
         <label>
           Session notes
           <textarea

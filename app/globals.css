@@ -537,31 +537,49 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.active-controls,
-.active-status {
+.active-primary-controls {
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr);
 }
 
-.active-status {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.active-status button:first-child {
-  background: var(--success);
-  border-color: var(--success);
-  color: #fff;
-}
-
-.active-status button:nth-child(2) {
-  background: var(--warning);
-  border-color: var(--warning);
-  color: #fff;
-}
-
-.active-status button:last-child {
+.active-secondary-action {
   background: transparent;
+  border-color: var(--hairline-subtle);
+  color: var(--foreground);
+}
+
+.active-primary-action {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+.active-finish {
+  border-top: 1px solid var(--hairline-subtle);
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.active-finish summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.active-finish-actions {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.65rem;
+}
+
+.active-finish-actions button {
+  background: transparent;
+  border-color: var(--hairline-subtle);
   color: var(--foreground);
 }
 
@@ -614,8 +632,8 @@ button:disabled {
     flex-direction: column;
   }
 
-  .active-controls,
-  .active-status,
+  .active-primary-controls,
+  .active-finish-actions,
   .active-metrics {
     grid-template-columns: 1fr;
   }
