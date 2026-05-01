@@ -495,7 +495,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
                 <Link href="/calendar">Open calendar</Link>
                 <Link href="/library">Workout library</Link>
                 <Link href="/import">Add from screenshot</Link>
-                <Link href="/profiles">Switch profile</Link>
+                <Link href="/profiles">Profiles</Link>
               </nav>
               <button
                 type="button"

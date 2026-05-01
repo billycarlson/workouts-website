@@ -14,11 +14,41 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const hasCookie = document.cookie.includes("profileId=");
+
     fetch("/api/profiles")
       .then((r) => r.json())
-      .then((data: Profile[]) => setProfiles(data))
-      .finally(() => setLoading(false));
-  }, []);
+      .then(async (data: Profile[]) => {
+        // Only auto-redirect if the user doesn't already have a profile selected
+        // (i.e. they were sent here by middleware, not from the burger menu)
+        if (!hasCookie) {
+          if (data.length === 0) {
+            // First ever visit — auto-create Billy and go straight to the app
+            const res = await fetch("/api/profiles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: "Billy" }),
+            });
+            const created: Profile = await res.json();
+            document.cookie = `profileId=${created.id}; path=/; max-age=31536000; SameSite=Lax`;
+            router.push("/");
+            router.refresh();
+            return;
+          }
+          if (data.length === 1) {
+            // Only one profile — auto-select it
+            document.cookie = `profileId=${data[0].id}; path=/; max-age=31536000; SameSite=Lax`;
+            router.push("/");
+            router.refresh();
+            return;
+          }
+        }
+
+        // Multiple profiles, or came here from the menu — show the switcher
+        setProfiles(data);
+        setLoading(false);
+      });
+  }, [router]);
 
   async function selectProfile(id: string) {
     document.cookie = `profileId=${id}; path=/; max-age=31536000; SameSite=Lax`;
@@ -52,31 +82,34 @@ export default function ProfilesPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <p className="text-sm opacity-50">Loading…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Workout Calendar</h1>
-          <p className="text-sm opacity-60 mt-1">Who&apos;s working out today?</p>
+          <h1 className="text-2xl font-bold">Who&apos;s working out?</h1>
         </div>
 
-        {loading ? (
-          <p className="text-center opacity-50 text-sm">Loading…</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {profiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => selectProfile(p.id)}
-                className="w-full rounded-xl border border-current/20 px-5 py-4 text-left text-base font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col gap-3">
+          {profiles.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => selectProfile(p.id)}
+              className="w-full rounded-xl border border-current/20 px-5 py-4 text-left text-base font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
 
-        <form onSubmit={createProfile} className="flex flex-col gap-3 pt-2">
+        <form onSubmit={createProfile} className="flex flex-col gap-3 pt-4 border-t border-current/10">
           <p className="text-xs font-semibold uppercase tracking-wide opacity-50">
             Add a new person
           </p>
