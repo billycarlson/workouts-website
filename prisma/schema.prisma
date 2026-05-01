@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  id        String               @id @default(cuid())
+  name      String               @unique
+  createdAt DateTime             @default(now())
+  workouts  WorkoutTemplate[]
+  scheduled ScheduledWorkout[]
+  imports   WorkoutImportDraft[]
+}
+
+model WorkoutTemplate {
+  id                String             @id
+  profileId         String
+  profile           Profile            @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name              String
+  createdAt         DateTime
+  updatedAt         DateTime
+  ocrText           String             @default("")
+  cleanInstructions String             @default("")
+  steps             Json
+  movementPatterns  String[]
+  bodyAreas         String[]
+  equipment         String[]
+  functionalFocus   String[]
+  intensity         String?
+  durationMinutes   Int?
+  progressionNotes  String?
+  schedulingNotes   String?
+  isSeed            Boolean            @default(false)
+  scheduled         ScheduledWorkout[]
+
+  @@index([profileId])
+}
+
+model ScheduledWorkout {
+  id              String          @id
+  profileId       String
+  profile         Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  workoutId       String
+  workout         WorkoutTemplate @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  date            String
+  status          String          @default("planned")
+  notes           String?
+  completedAt     DateTime?
+  activeStepIndex Int?
+  isSeed          Boolean         @default(false)
+
+  @@index([profileId])
+  @@index([profileId, date])
+}
+
+model WorkoutImportDraft {
+  id        String   @id
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fileName  String
+  ocrText   String   @default("")
+  status    String   @default("processing")
+  workoutId String?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+}
