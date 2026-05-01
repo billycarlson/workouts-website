@@ -1,0 +1,36 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getProfileId } from "@/lib/profile-cookie";
+import type { WorkoutImportDraft } from "@/lib/workout-types";
+
+export async function POST(req: Request) {
+  const profileId = await getProfileId();
+  if (!profileId) {
+    return NextResponse.json({ error: "No profile selected" }, { status: 401 });
+  }
+
+  const body = (await req.json()) as WorkoutImportDraft;
+
+  const created = await prisma.workoutImportDraft.create({
+    data: {
+      id: body.id,
+      profileId,
+      fileName: body.fileName,
+      ocrText: body.ocrText ?? "",
+      status: body.status ?? "processing",
+      workoutId: body.workoutId ?? null,
+      error: body.error ?? null,
+    },
+  });
+
+  const result: WorkoutImportDraft = {
+    id: created.id,
+    fileName: created.fileName,
+    ocrText: created.ocrText,
+    status: created.status as WorkoutImportDraft["status"],
+    workoutId: created.workoutId ?? undefined,
+    error: created.error ?? undefined,
+  };
+
+  return NextResponse.json(result, { status: 201 });
+}

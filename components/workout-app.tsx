@@ -8,7 +8,6 @@ import {
   parseWorkoutStateExport,
   saveWorkoutState,
 } from "@/lib/local-store";
-import { createSeedSchedule, seedWorkouts } from "@/lib/seed-workouts";
 import {
   type ExerciseStep,
   type ScheduledWorkout,
@@ -22,9 +21,9 @@ const todayIso = toDateInputValue(new Date());
 
 type WorkoutAppView = "home" | "calendar" | "library" | "import";
 
-const starterState: WorkoutAppState = {
-  workouts: seedWorkouts,
-  scheduled: createSeedSchedule(todayIso),
+const emptyState: WorkoutAppState = {
+  workouts: [],
+  scheduled: [],
   imports: [],
   selectedDate: todayIso,
 };
@@ -103,34 +102,9 @@ function statusLabel(status: WorkoutStatus) {
   return "Planned";
 }
 
-function isSeedId(id: string) {
-  return id.startsWith("seed-") || id.startsWith("garage-week-1-");
-}
-
-function hydrateStoredState(storedState: WorkoutAppState | undefined | null) {
-  if (!storedState) {
-    return starterState;
-  }
-
-  const customWorkouts = storedState.workouts.filter(
-    (workout) => !isSeedId(workout.id),
-  );
-  const customScheduled = storedState.scheduled.filter(
-    (scheduledWorkout) =>
-      !isSeedId(scheduledWorkout.id) && !isSeedId(scheduledWorkout.workoutId),
-  );
-  const selectedDate = storedState.selectedDate || todayIso;
-
-  return {
-    ...storedState,
-    selectedDate,
-    workouts: [...seedWorkouts, ...customWorkouts],
-    scheduled: [...createSeedSchedule(selectedDate), ...customScheduled],
-  };
-}
 
 export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
-  const [state, setState] = useState<WorkoutAppState>(starterState);
+  const [state, setState] = useState<WorkoutAppState>(emptyState);
   const [loaded, setLoaded] = useState(false);
   const [ocrProgress, setOcrProgress] = useState("");
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
@@ -141,16 +115,26 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
   useEffect(() => {
     let isMounted = true;
 
-    loadWorkoutState()
-      .then((storedState) => {
-        if (isMounted) {
-          setState(hydrateStoredState(storedState));
+    // Phase 1: load cached state from IndexedDB immediately (offline-safe)
+    loadWorkoutState().then((cached) => {
+      if (isMounted && cached) {
+        setState({ ...cached, selectedDate: cached.selectedDate || todayIso });
+        setLoaded(true);
+      }
+    });
+
+    // Phase 2: fetch authoritative state from server
+    fetch("/api/state")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: WorkoutAppState | null) => {
+        if (isMounted && data) {
+          setState({ ...data, selectedDate: data.selectedDate || todayIso });
+          void saveWorkoutState(data);
         }
       })
+      .catch(() => {/* offline — IndexedDB data already shown */})
       .finally(() => {
-        if (isMounted) {
-          setLoaded(true);
-        }
+        if (isMounted) setLoaded(true);
       });
 
     return () => {
@@ -171,12 +155,6 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       window.location.replace(targetPath);
     }
   }, []);
-
-  useEffect(() => {
-    if (loaded) {
-      void saveWorkoutState(state);
-    }
-  }, [loaded, state]);
 
   const todayWorkouts = useMemo(
     () => state.scheduled.filter((scheduledWorkout) => scheduledWorkout.date === todayIso),
@@ -208,7 +186,31 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     : null;
 
   function updateState(updater: (current: WorkoutAppState) => WorkoutAppState) {
-    setState((current) => updater(current));
+    setState((current) => {
+      const next = updater(current);
+      void saveWorkoutState(next);
+      return next;
+    });
+  }
+
+  function syncPost(path: string, body: unknown) {
+    void fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function syncPut(path: string, body: unknown) {
+    void fetch(path, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function syncDelete(path: string) {
+    void fetch(path, { method: "DELETE" });
   }
 
   async function handleScreenshotUpload(files: FileList | null) {
@@ -218,19 +220,18 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
 
     for (const file of fileList) {
       const draftId = createId("import");
+      const draft: WorkoutImportDraft = {
+        id: draftId,
+        fileName: file.name,
+        ocrText: "",
+        status: "processing",
+      };
 
       updateState((current) => ({
         ...current,
-        imports: [
-          {
-            id: draftId,
-            fileName: file.name,
-            ocrText: "",
-            status: "processing",
-          },
-          ...current.imports,
-        ],
+        imports: [draft, ...current.imports],
       }));
+      syncPost("/api/imports", draft);
 
       try {
         const Tesseract = await import("tesseract.js");
@@ -265,33 +266,23 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
         updateState((current) => ({
           ...current,
           workouts: [workout, ...current.workouts],
-          imports: current.imports.map((draft) =>
-            draft.id === draftId
-              ? {
-                  ...draft,
-                  ocrText,
-                  status: "reviewed",
-                  workoutId: workout.id,
-                }
-              : draft,
+          imports: current.imports.map((d) =>
+            d.id === draftId
+              ? { ...d, ocrText, status: "reviewed", workoutId: workout.id }
+              : d,
           ),
         }));
+        syncPost("/api/workouts", workout);
+        syncPut(`/api/imports/${draftId}`, { ocrText, status: "reviewed", workoutId: workout.id });
       } catch (error) {
+        const errMsg = error instanceof Error ? error.message : "OCR failed for this screenshot.";
         updateState((current) => ({
           ...current,
-          imports: current.imports.map((draft) =>
-            draft.id === draftId
-              ? {
-                  ...draft,
-                  status: "failed",
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : "OCR failed for this screenshot.",
-                }
-              : draft,
+          imports: current.imports.map((d) =>
+            d.id === draftId ? { ...d, status: "failed", error: errMsg } : d,
           ),
         }));
+        syncPut(`/api/imports/${draftId}`, { status: "failed", error: errMsg });
       }
     }
 
@@ -306,6 +297,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       ...current,
       imports: current.imports.filter((draft) => draft.id !== id),
     }));
+    syncDelete(`/api/imports/${id}`);
   }
 
   function scheduleWorkout(workoutId: string, date: string) {
@@ -321,6 +313,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       ...current,
       scheduled: [...current.scheduled, scheduledWorkout],
     }));
+    syncPost("/api/scheduled", scheduledWorkout);
   }
 
   function setWorkoutForToday(workoutId: string) {
@@ -332,14 +325,16 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       activeStepIndex: 0,
     };
 
-    updateState((current) => ({
-      ...current,
-      selectedDate: todayIso,
-      scheduled: [
-        ...current.scheduled.filter((scheduledWorkoutItem) => scheduledWorkoutItem.date !== todayIso),
-        scheduledWorkout,
-      ],
-    }));
+    updateState((current) => {
+      const removed = current.scheduled.filter((sw) => sw.date !== todayIso);
+      removed.forEach((sw) => syncDelete(`/api/scheduled/${sw.id}`));
+      return {
+        ...current,
+        selectedDate: todayIso,
+        scheduled: [...removed, scheduledWorkout],
+      };
+    });
+    syncPost("/api/scheduled", scheduledWorkout);
     setChooserOpen(false);
   }
 
@@ -355,6 +350,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
           : scheduledWorkout,
       ),
     }));
+    syncPut(`/api/scheduled/${id}`, updates);
   }
 
   function removeScheduledWorkout(id: string) {
@@ -364,6 +360,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
         (scheduledWorkout) => scheduledWorkout.id !== id,
       ),
     }));
+    syncDelete(`/api/scheduled/${id}`);
   }
 
   function handleExport() {
@@ -498,6 +495,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
                 <Link href="/calendar">Open calendar</Link>
                 <Link href="/library">Workout library</Link>
                 <Link href="/import">Add from screenshot</Link>
+                <Link href="/profiles">Switch profile</Link>
               </nav>
               <button
                 type="button"
