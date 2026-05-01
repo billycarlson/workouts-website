@@ -3,7 +3,6 @@ import type { WorkoutAppState } from "./workout-types";
 
 const databaseName = "workout-calendar";
 const storeName = "app-state";
-const stateKey = "state";
 
 interface WorkoutCalendarDatabase extends DBSchema {
   [storeName]: {
@@ -30,24 +29,43 @@ async function getDatabase() {
   });
 }
 
-export async function loadWorkoutState() {
-  const database = await getDatabase();
-
-  if (!database) {
-    return null;
-  }
-
-  return database.get(storeName, stateKey);
+function stateKeyFor(profileId: string | null | undefined) {
+  return profileId ? `state:${profileId}` : null;
 }
 
-export async function saveWorkoutState(state: WorkoutAppState) {
+export async function loadWorkoutState(profileId: string | null | undefined) {
+  const key = stateKeyFor(profileId);
+  if (!key) return null;
+
   const database = await getDatabase();
+  if (!database) return null;
 
-  if (!database) {
-    return;
-  }
+  return database.get(storeName, key);
+}
 
-  await database.put(storeName, state, stateKey);
+export async function saveWorkoutState(
+  profileId: string | null | undefined,
+  state: WorkoutAppState,
+) {
+  const key = stateKeyFor(profileId);
+  if (!key) return;
+
+  const database = await getDatabase();
+  if (!database) return;
+
+  await database.put(storeName, state, key);
+}
+
+export async function clearWorkoutState(
+  profileId: string | null | undefined,
+) {
+  const key = stateKeyFor(profileId);
+  if (!key) return;
+
+  const database = await getDatabase();
+  if (!database) return;
+
+  await database.delete(storeName, key);
 }
 
 export function exportWorkoutState(state: WorkoutAppState) {

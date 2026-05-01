@@ -19,12 +19,23 @@ export async function PUT(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const nextStatus = body.status ?? existing.status;
+  // Returning to "planned" should clear the completion timestamp.
+  // (JSON serialisation strips `undefined` from the request body, so an
+  // explicit transition to "planned" is the only reliable signal we get.)
+  const completedAt =
+    nextStatus === "planned"
+      ? null
+      : body.completedAt !== undefined
+        ? new Date(body.completedAt)
+        : existing.completedAt;
+
   const updated = await prisma.scheduledWorkout.update({
     where: { id },
     data: {
-      status: body.status ?? existing.status,
+      status: nextStatus,
       notes: body.notes !== undefined ? body.notes : existing.notes,
-      completedAt: body.completedAt !== undefined ? new Date(body.completedAt) : existing.completedAt,
+      completedAt,
       activeStepIndex: body.activeStepIndex !== undefined ? body.activeStepIndex : existing.activeStepIndex,
     },
   });

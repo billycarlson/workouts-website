@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { hasCookie, setCookie } from "cookies-next/client";
 
 type Profile = { id: string; name: string };
+
+const PROFILE_COOKIE_OPTIONS = {
+  path: "/",
+  maxAge: 60 * 60 * 24 * 365,
+  sameSite: "lax" as const,
+};
 
 export default function ProfilesPage() {
   const router = useRouter();
@@ -14,14 +21,14 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const hasCookie = document.cookie.includes("profileId=");
+    const alreadyPicked = hasCookie("profileId");
 
     fetch("/api/profiles")
       .then((r) => r.json())
       .then(async (data: Profile[]) => {
         // Only auto-redirect if the user doesn't already have a profile selected
-        // (i.e. they were sent here by middleware, not from the burger menu)
-        if (!hasCookie) {
+        // (i.e. they were sent here by proxy, not from the burger menu)
+        if (!alreadyPicked) {
           if (data.length === 0) {
             // First ever visit — auto-create Billy and go straight to the app
             const res = await fetch("/api/profiles", {
@@ -30,14 +37,14 @@ export default function ProfilesPage() {
               body: JSON.stringify({ name: "Billy" }),
             });
             const created: Profile = await res.json();
-            document.cookie = `profileId=${created.id}; path=/; max-age=31536000; SameSite=Lax`;
+            setCookie("profileId", created.id, PROFILE_COOKIE_OPTIONS);
             router.push("/");
             router.refresh();
             return;
           }
           if (data.length === 1) {
             // Only one profile — auto-select it
-            document.cookie = `profileId=${data[0].id}; path=/; max-age=31536000; SameSite=Lax`;
+            setCookie("profileId", data[0].id, PROFILE_COOKIE_OPTIONS);
             router.push("/");
             router.refresh();
             return;
@@ -51,7 +58,7 @@ export default function ProfilesPage() {
   }, [router]);
 
   async function selectProfile(id: string) {
-    document.cookie = `profileId=${id}; path=/; max-age=31536000; SameSite=Lax`;
+    setCookie("profileId", id, PROFILE_COOKIE_OPTIONS);
     router.push("/");
     router.refresh();
   }

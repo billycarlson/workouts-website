@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getCookie } from "cookies-next/client";
 import {
   exportWorkoutState,
   loadWorkoutState,
@@ -105,7 +106,7 @@ function statusLabel(status: WorkoutStatus) {
 
 export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
   const [state, setState] = useState<WorkoutAppState>(emptyState);
-  const [loaded, setLoaded] = useState(false);
+  const profileIdRef = useRef<string | null>(null);
   const [ocrProgress, setOcrProgress] = useState("");
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -114,12 +115,17 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
 
   useEffect(() => {
     let isMounted = true;
+    const cookieValue = getCookie("profileId");
+    const currentProfileId = typeof cookieValue === "string" ? cookieValue : null;
+    profileIdRef.current = currentProfileId;
 
-    // Phase 1: load cached state from IndexedDB immediately (offline-safe)
-    loadWorkoutState().then((cached) => {
-      if (isMounted && cached) {
+    let serverApplied = false;
+
+    // Phase 1: load cached state from IndexedDB immediately (offline-safe).
+    // Skipped if the server already responded — its data is more authoritative.
+    loadWorkoutState(currentProfileId).then((cached) => {
+      if (isMounted && cached && !serverApplied) {
         setState({ ...cached, selectedDate: cached.selectedDate || todayIso });
-        setLoaded(true);
       }
     });
 
@@ -128,14 +134,12 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data: WorkoutAppState | null) => {
         if (isMounted && data) {
+          serverApplied = true;
           setState({ ...data, selectedDate: data.selectedDate || todayIso });
-          void saveWorkoutState(data);
+          void saveWorkoutState(currentProfileId, data);
         }
       })
-      .catch(() => {/* offline — IndexedDB data already shown */})
-      .finally(() => {
-        if (isMounted) setLoaded(true);
-      });
+      .catch(() => {/* offline — IndexedDB data already shown */});
 
     return () => {
       isMounted = false;
@@ -188,7 +192,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
   function updateState(updater: (current: WorkoutAppState) => WorkoutAppState) {
     setState((current) => {
       const next = updater(current);
-      void saveWorkoutState(next);
+      void saveWorkoutState(profileIdRef.current, next);
       return next;
     });
   }
@@ -326,12 +330,13 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     };
 
     updateState((current) => {
-      const removed = current.scheduled.filter((sw) => sw.date !== todayIso);
-      removed.forEach((sw) => syncDelete(`/api/scheduled/${sw.id}`));
+      const existingForToday = current.scheduled.filter((sw) => sw.date === todayIso);
+      existingForToday.forEach((sw) => syncDelete(`/api/scheduled/${sw.id}`));
+      const remaining = current.scheduled.filter((sw) => sw.date !== todayIso);
       return {
         ...current,
         selectedDate: todayIso,
-        scheduled: [...removed, scheduledWorkout],
+        scheduled: [...remaining, scheduledWorkout],
       };
     });
     syncPost("/api/scheduled", scheduledWorkout);
@@ -379,7 +384,23 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     if (!file) return;
 
     const text = await file.text();
-    setState(parseWorkoutStateExport(text));
+    const imported = parseWorkoutStateExport(text);
+    setState(imported);
+    void saveWorkoutState(profileIdRef.current, imported);
+
+    // Replace the server copy with the imported state so it survives a refresh.
+    try {
+      const res = await fetch("/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(imported),
+      });
+      if (!res.ok) {
+        console.error("Backup import: server replace failed", await res.text());
+      }
+    } catch (err) {
+      console.error("Backup import: server replace failed", err);
+    }
   }
 
   if (activeScheduledWorkout && activeWorkout) {
