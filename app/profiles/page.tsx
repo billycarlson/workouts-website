@@ -12,31 +12,79 @@ const PROFILE_COOKIE_OPTIONS = {
   sameSite: "lax" as const,
 };
 
+async function readJsonSafe(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function errorMessage(payload: unknown, fallback: string) {
+  if (payload && typeof payload === "object" && "error" in payload) {
+    const err = (payload as { error: unknown }).error;
+    if (typeof err === "string" && err.length > 0) return err;
+  }
+  return fallback;
+}
+
 export default function ProfilesPage() {
   const router = useRouter();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const alreadyPicked = hasCookie("profileId");
 
-    fetch("/api/profiles")
-      .then((r) => r.json())
-      .then(async (data: Profile[]) => {
+    (async () => {
+      try {
+        const res = await fetch("/api/profiles");
+        const payload = await readJsonSafe(res);
+
+        if (!res.ok) {
+          if (cancelled) return;
+          setLoadError(
+            errorMessage(
+              payload,
+              `Couldn't load profiles (HTTP ${res.status}). Check the database connection.`,
+            ),
+          );
+          setLoading(false);
+          return;
+        }
+
+        const data = Array.isArray(payload) ? (payload as Profile[]) : [];
+
         // Only auto-redirect if the user doesn't already have a profile selected
         // (i.e. they were sent here by proxy, not from the burger menu)
         if (!alreadyPicked) {
           if (data.length === 0) {
             // First ever visit — auto-create Billy and go straight to the app
-            const res = await fetch("/api/profiles", {
+            const createRes = await fetch("/api/profiles", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name: "Billy" }),
             });
-            const created: Profile = await res.json();
+            const createdPayload = await readJsonSafe(createRes);
+            if (cancelled) return;
+            if (!createRes.ok) {
+              setLoadError(
+                errorMessage(
+                  createdPayload,
+                  `Couldn't create the first profile (HTTP ${createRes.status}).`,
+                ),
+              );
+              setLoading(false);
+              return;
+            }
+            const created = createdPayload as Profile;
             setCookie("profileId", created.id, PROFILE_COOKIE_OPTIONS);
             router.push("/");
             router.refresh();
@@ -51,10 +99,24 @@ export default function ProfilesPage() {
           }
         }
 
+        if (cancelled) return;
         // Multiple profiles, or came here from the menu — show the switcher
         setProfiles(data);
         setLoading(false);
-      });
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(
+          err instanceof Error
+            ? `Couldn't reach the server: ${err.message}`
+            : "Couldn't reach the server.",
+        );
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   async function selectProfile(id: string) {
@@ -74,15 +136,16 @@ export default function ProfilesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
+      const payload = await readJsonSafe(res);
       if (res.status === 409) {
         setError("That name is already taken.");
         return;
       }
       if (!res.ok) {
-        setError("Something went wrong. Try again.");
+        setError(errorMessage(payload, "Something went wrong. Try again."));
         return;
       }
-      const created: Profile = await res.json();
+      const created = payload as Profile;
       await selectProfile(created.id);
     } finally {
       setCreating(false);
@@ -93,6 +156,24 @@ export default function ProfilesPage() {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <p className="text-sm opacity-50">Loading…</p>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-md flex flex-col gap-4 text-center">
+          <h1 className="text-xl font-bold">Something went wrong</h1>
+          <p className="text-sm opacity-70 break-words">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-lg border border-current/20 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
       </main>
     );
   }
