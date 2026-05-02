@@ -15,8 +15,15 @@ function createPrismaClient() {
     sslAccept === "accept_invalid_certs" ||
     process.env.PG_SSL_REJECT_UNAUTHORIZED === "false";
 
+  // Keep SSL behavior under our control via Pool.ssl. If sslmode remains in
+  // the URL, newer pg parsing semantics can force stricter verification first.
+  dbUrl.searchParams.delete("sslmode");
+  dbUrl.searchParams.delete("sslaccept");
+  dbUrl.searchParams.delete("uselibpqcompat");
+  const normalizedConnectionString = dbUrl.toString();
+
   const pool = new Pool({
-    connectionString,
+    connectionString: normalizedConnectionString,
     ssl: shouldAllowInvalidCerts ? { rejectUnauthorized: false } : undefined,
   });
 
