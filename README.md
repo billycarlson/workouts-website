@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Workout Calendar
 
-## Getting Started
+A multi-profile workout planner built with Next.js 16, React 19, Prisma, and PostgreSQL.
 
-First, run the development server:
+## Features
+
+- Today-focused home screen with quick start
+- 2-week calendar scheduling
+- Workout library and screenshot import flow
+- Active workout mode (step progression, notes, status)
+- Multi-profile support with cookie-based profile selection
+- Local IndexedDB cache plus server-backed persistence
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19
+- Prisma + PostgreSQL
+- `@prisma/adapter-pg` + `pg`
+- Tailwind CSS 4
+
+## Environment Variables
+
+Create `.env.local`:
+
+```bash
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?sslmode=require"
+```
+
+Notes:
+- For Railway proxy hosts (`*.proxy.rlwy.net`), TLS handling is done in `lib/prisma.ts`.
+- In Vercel, set `DATABASE_URL` in project Environment Variables for the environments you deploy.
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Apply Prisma schema to your database:
+
+```bash
+npm run db:push
+```
+
+Start dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` - run local dev server
+- `npm run build` - build production bundle
+- `npm run start` - run production server
+- `npm run lint` - run ESLint
+- `npm run db:generate` - generate Prisma client
+- `npm run db:push` - push Prisma schema to DB
+- `npm run db:push:force` - force push with data-loss acceptance
+- `npm run db:migrate` - run Prisma migrate deploy
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
+Deploy to Vercel:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Connect repository to Vercel.
+2. Set `DATABASE_URL` in Vercel project settings.
+3. Deploy.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+If the DB is new, run once against production database:
 
-## Deploy on Vercel
+```bash
+npx prisma db push --url 'postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?sslmode=require'
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Behavior Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Unauthenticated visitors are redirected to `/profiles` by `proxy.ts`.
+- After selecting/creating a profile, a `profileId` cookie is set and the user is sent to `/`.
+
+## Troubleshooting
+
+- `500 /api/profiles` + `DATABASE_URL is missing`
+  - Add `DATABASE_URL` in Vercel env vars and redeploy.
+- `P1000 Authentication failed`
+  - Re-copy connection string or rotate DB password.
+- `self-signed certificate in certificate chain`
+  - Use Railway URL + current TLS logic in `lib/prisma.ts` (already configured).
+- UI stuck on Loading
+  - Open browser devtools network tab and check `/api/profiles` response body.
