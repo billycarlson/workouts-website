@@ -45,6 +45,7 @@ export type ScheduledWorkout = {
   workoutId: string;
   date: string;
   status: WorkoutStatus;
+  stepStatuses?: WorkoutStatus[];
   notes?: string;
   completedAt?: string;
   activeStepIndex?: number;

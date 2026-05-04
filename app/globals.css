@@ -494,6 +494,41 @@ button:disabled {
   padding-top: 1rem;
 }
 
+.active-step-progress {
+  border-top: 1px solid var(--hairline-subtle);
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+}
+
+.active-step-progress-label {
+  color: var(--muted);
+  display: flex;
+  font-size: 0.78rem;
+  justify-content: space-between;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.active-step-progress-label strong {
+  color: var(--foreground);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+
+.active-step-progress-track {
+  background: var(--hairline-subtle);
+  height: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.active-step-progress-fill {
+  background: var(--foreground);
+  height: 100%;
+  transition: width 160ms ease-out;
+}
+
 .active-number {
   font-size: clamp(6rem, 28vw, 18rem);
   line-height: 0.78;

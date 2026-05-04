@@ -47,6 +47,7 @@ model ScheduledWorkout {
   workout         WorkoutTemplate @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   date            String
   status          String          @default("planned")
+  stepStatuses    String[]        @default([])
   notes           String?
   completedAt     DateTime?
   activeStepIndex Int?

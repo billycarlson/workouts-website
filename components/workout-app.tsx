@@ -310,6 +310,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       workoutId,
       date,
       status: "planned",
+      stepStatuses: [],
       activeStepIndex: 0,
     };
 
@@ -326,6 +327,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       workoutId,
       date: todayIso,
       status: "planned",
+      stepStatuses: [],
       activeStepIndex: 0,
     };
 
@@ -820,11 +822,19 @@ function ActiveWorkout({
   onBack: () => void;
   onUpdate: (id: string, updates: Partial<ScheduledWorkout>) => void;
 }) {
-  const stepIndex = scheduledWorkout.activeStepIndex ?? 0;
+  const stepCount = Math.max(workout.steps.length, 1);
+  const stepIndex = Math.min(
+    Math.max(scheduledWorkout.activeStepIndex ?? 0, 0),
+    stepCount - 1,
+  );
   const step = workout.steps[stepIndex] ?? workout.steps[0];
-  const progress = workout.steps.length
-    ? `${Math.min(stepIndex + 1, workout.steps.length)}/${workout.steps.length}`
-    : "1/1";
+  const progress = `${stepIndex + 1}/${stepCount}`;
+  const stepStatuses = Array.from({ length: stepCount }, (_, index) => {
+    return scheduledWorkout.stepStatuses?.[index] ?? "planned";
+  });
+  const currentStepStatus = stepStatuses[stepIndex];
+  const markedStepCount = stepStatuses.filter((status) => status !== "planned").length;
+  const stepCompletionPercent = Math.round((markedStepCount / stepCount) * 100);
   const stepMetrics = step
     ? [
         step.targetSets ? { label: "Sets", value: step.targetSets } : null,
@@ -838,10 +848,22 @@ function ActiveWorkout({
       ].filter((metric): metric is { label: string; value: string } => Boolean(metric))
     : [];
 
-  function setStatus(status: WorkoutStatus) {
+  function setOverallStatus(status: WorkoutStatus) {
     onUpdate(scheduledWorkout.id, {
       status,
       completedAt: status === "planned" ? undefined : new Date().toISOString(),
+    });
+  }
+
+  function setCurrentStepStatus(status: WorkoutStatus) {
+    const nextStatuses = [...stepStatuses];
+    nextStatuses[stepIndex] = status;
+    onUpdate(scheduledWorkout.id, {
+      stepStatuses: nextStatuses,
+      status:
+        scheduledWorkout.status === "planned" && status !== "planned"
+          ? "modified"
+          : scheduledWorkout.status,
     });
   }
 
@@ -858,6 +880,20 @@ function ActiveWorkout({
         <div className="active-number-row">
           <span className="active-number">{progress}</span>
           <span>step</span>
+        </div>
+        <div className="active-step-progress">
+          <div className="active-step-progress-label">
+            <span>Steps marked</span>
+            <strong>
+              {markedStepCount}/{stepCount}
+            </strong>
+          </div>
+          <div className="active-step-progress-track" aria-hidden="true">
+            <div
+              className="active-step-progress-fill"
+              style={{ width: `${stepCompletionPercent}%` }}
+            />
+          </div>
         </div>
         {step ? (
           <div className="active-step">
@@ -897,27 +933,51 @@ function ActiveWorkout({
             className="active-primary-action"
             onClick={() =>
               onUpdate(scheduledWorkout.id, {
-                activeStepIndex: Math.min(stepIndex + 1, workout.steps.length - 1),
+                activeStepIndex: Math.min(stepIndex + 1, stepCount - 1),
               })
             }
           >
             Next
           </button>
         </div>
-        <details className="active-finish">
-          <summary>Finish workout</summary>
+        <section className="active-finish">
+          <p>Mark this exercise</p>
           <div className="active-finish-actions">
-            <button type="button" onClick={() => setStatus("done")}>
+            <button type="button" onClick={() => setCurrentStepStatus("done")}>
               Done
             </button>
-            <button type="button" onClick={() => setStatus("modified")}>
+            <button type="button" onClick={() => setCurrentStepStatus("modified")}>
               Modified
             </button>
-            <button type="button" onClick={() => setStatus("skipped")}>
+            <button type="button" onClick={() => setCurrentStepStatus("skipped")}>
               Skip
             </button>
+            <button type="button" onClick={() => setCurrentStepStatus("planned")}>
+              Reset
+            </button>
           </div>
-        </details>
+          <small>
+            Current step status: {statusLabel(currentStepStatus)} ({markedStepCount}/{stepCount} marked)
+          </small>
+        </section>
+        <section className="active-finish">
+          <p>Finish entire workout</p>
+          <div className="active-finish-actions">
+            <button type="button" onClick={() => setOverallStatus("done")}>
+              Done
+            </button>
+            <button type="button" onClick={() => setOverallStatus("modified")}>
+              Modified
+            </button>
+            <button type="button" onClick={() => setOverallStatus("skipped")}>
+              Skip
+            </button>
+            <button type="button" onClick={() => setOverallStatus("planned")}>
+              Reset
+            </button>
+          </div>
+          <small>Workout status: {statusLabel(scheduledWorkout.status)}</small>
+        </section>
         <label>
           Session notes
           <textarea

@@ -36,6 +36,7 @@ export async function PUT(req: Request, { params }: Params) {
       where: { id },
       data: {
         status: nextStatus,
+        stepStatuses: body.stepStatuses !== undefined ? body.stepStatuses : existing.stepStatuses,
         notes: body.notes !== undefined ? body.notes : existing.notes,
         completedAt,
         activeStepIndex: body.activeStepIndex !== undefined ? body.activeStepIndex : existing.activeStepIndex,
@@ -47,6 +48,7 @@ export async function PUT(req: Request, { params }: Params) {
       workoutId: updated.workoutId,
       date: updated.date,
       status: updated.status as ScheduledWorkout["status"],
+      stepStatuses: updated.stepStatuses as ScheduledWorkout["stepStatuses"],
       notes: updated.notes ?? undefined,
       completedAt: updated.completedAt?.toISOString() ?? undefined,
       activeStepIndex: updated.activeStepIndex ?? undefined,
