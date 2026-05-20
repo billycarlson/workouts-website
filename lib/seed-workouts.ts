@@ -489,6 +489,22 @@ const workoutSeeds: WorkoutSeed[] = [
 
 export const seedWorkouts: WorkoutTemplate[] = workoutSeeds.map(buildWorkout);
 
+function withProfileScopedIds(profileId: string, workout: WorkoutTemplate): WorkoutTemplate {
+  const id = `${profileId}::${workout.id}`;
+  return {
+    ...workout,
+    id,
+    steps: workout.steps.map((step) => ({
+      ...step,
+      id: `${profileId}::${step.id}`,
+    })),
+  };
+}
+
+export function createProfileSeedWorkouts(profileId: string): WorkoutTemplate[] {
+  return seedWorkouts.map((workout) => withProfileScopedIds(profileId, workout));
+}
+
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -525,6 +541,27 @@ export function createSeedSchedule(date: string): ScheduledWorkout[] {
 
     return {
       id: `seed-safe-strength-scheduled-${index + 1}`,
+      workoutId: workout.id,
+      date: toDateInputValue(workoutDate),
+      status: "planned",
+      activeStepIndex: 0,
+    };
+  });
+}
+
+export function createProfileSeedSchedule(
+  profileId: string,
+  date: string,
+): ScheduledWorkout[] {
+  const workouts = createProfileSeedWorkouts(profileId);
+  const requestedStart = new Date(`${date}T12:00:00`);
+  const mondayStart = getNextMonday(requestedStart);
+
+  return workouts.map((workout, index) => {
+    const workoutDate = addWeekdays(mondayStart, index);
+
+    return {
+      id: `${profileId}::seed-safe-strength-scheduled-${index + 1}`,
       workoutId: workout.id,
       date: toDateInputValue(workoutDate),
       status: "planned",

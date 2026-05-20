@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/prisma";
-import { seedWorkouts, createSeedSchedule } from "@/lib/seed-workouts";
+import { createProfileSeedSchedule, createProfileSeedWorkouts } from "@/lib/seed-workouts";
 import { describeDbError } from "@/lib/api-errors";
 
 export async function GET() {
@@ -35,13 +35,14 @@ export async function POST(req: Request) {
     }
 
     const todayIso = new Date().toISOString().slice(0, 10);
-    const schedule = createSeedSchedule(todayIso);
 
     const profile = await dbQuery((prisma) => prisma.$transaction(async (tx) => {
       const newProfile = await tx.profile.create({ data: { name: trimmedName } });
+      const workouts = createProfileSeedWorkouts(newProfile.id);
+      const schedule = createProfileSeedSchedule(newProfile.id, todayIso);
 
       await tx.workoutTemplate.createMany({
-        data: seedWorkouts.map((w) => ({
+        data: workouts.map((w) => ({
           id: w.id,
           profileId: newProfile.id,
           name: w.name,
