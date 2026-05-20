@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbQuery } from "@/lib/prisma";
 import { getProfileId } from "@/lib/profile-cookie";
 import { describeDbError } from "@/lib/api-errors";
 import type { ScheduledWorkout } from "@/lib/workout-types";
@@ -13,19 +13,21 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as ScheduledWorkout;
 
-    const created = await prisma.scheduledWorkout.create({
-      data: {
-        id: body.id,
-        profileId,
-        workoutId: body.workoutId,
-        date: body.date,
-        status: body.status,
-        stepStatuses: body.stepStatuses ?? [],
-        notes: body.notes ?? null,
-        completedAt: body.completedAt ? new Date(body.completedAt) : null,
-        activeStepIndex: body.activeStepIndex ?? null,
-      },
-    });
+    const created = await dbQuery((prisma) =>
+      prisma.scheduledWorkout.create({
+        data: {
+          id: body.id,
+          profileId,
+          workoutId: body.workoutId,
+          date: body.date,
+          status: body.status,
+          stepStatuses: body.stepStatuses ?? [],
+          notes: body.notes ?? null,
+          completedAt: body.completedAt ? new Date(body.completedAt) : null,
+          activeStepIndex: body.activeStepIndex ?? null,
+        },
+      }),
+    );
 
     const result: ScheduledWorkout = {
       id: created.id,

@@ -21,6 +21,14 @@ export function describeDbError(err: unknown): string {
     return "Database is reachable but the schema hasn't been applied yet. Run `npx prisma db push` against the production DATABASE_URL.";
   }
 
+  if (/private database host that Vercel cannot reach/i.test(message)) {
+    return message;
+  }
+
+  if (/Server has closed the connection|Connection terminated unexpectedly|P1001|P1017/i.test(message)) {
+    return "Database connection failed. Check that DATABASE_URL uses your provider's public URL, the database is running, and redeploy after updating env vars.";
+  }
+
   if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|self.signed certificate/i.test(message)) {
     return `Database is unreachable: ${message}`;
   }

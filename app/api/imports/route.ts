@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbQuery } from "@/lib/prisma";
 import { getProfileId } from "@/lib/profile-cookie";
 import { describeDbError } from "@/lib/api-errors";
 import type { WorkoutImportDraft } from "@/lib/workout-types";
@@ -13,17 +13,19 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as WorkoutImportDraft;
 
-    const created = await prisma.workoutImportDraft.create({
-      data: {
-        id: body.id,
-        profileId,
-        fileName: body.fileName,
-        ocrText: body.ocrText ?? "",
-        status: body.status ?? "processing",
-        workoutId: body.workoutId ?? null,
-        error: body.error ?? null,
-      },
-    });
+    const created = await dbQuery((prisma) =>
+      prisma.workoutImportDraft.create({
+        data: {
+          id: body.id,
+          profileId,
+          fileName: body.fileName,
+          ocrText: body.ocrText ?? "",
+          status: body.status ?? "processing",
+          workoutId: body.workoutId ?? null,
+          error: body.error ?? null,
+        },
+      }),
+    );
 
     const result: WorkoutImportDraft = {
       id: created.id,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getCookie } from "cookies-next/client";
+import { deleteCookie, getCookie } from "cookies-next/client";
 import {
   exportWorkoutState,
   loadWorkoutState,
@@ -131,7 +131,14 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
 
     // Phase 2: fetch authoritative state from server
     fetch("/api/state")
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (res.status === 404) {
+          deleteCookie("profileId", { path: "/" });
+          window.location.href = "/profiles";
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
       .then((data: WorkoutAppState | null) => {
         if (isMounted && data) {
           serverApplied = true;

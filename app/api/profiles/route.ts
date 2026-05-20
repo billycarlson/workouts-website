@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbQuery } from "@/lib/prisma";
 import { seedWorkouts, createSeedSchedule } from "@/lib/seed-workouts";
 import { describeDbError } from "@/lib/api-errors";
 
 export async function GET() {
   try {
-    const profiles = await prisma.profile.findMany({
-      orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, createdAt: true },
-    });
+    const profiles = await dbQuery((prisma) =>
+      prisma.profile.findMany({
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, createdAt: true },
+      }),
+    );
     return NextResponse.json(profiles);
   } catch (err) {
     console.error("GET /api/profiles failed", err);
@@ -25,7 +27,9 @@ export async function POST(req: Request) {
     }
 
     const trimmedName = name.trim();
-    const existing = await prisma.profile.findUnique({ where: { name: trimmedName } });
+    const existing = await dbQuery((prisma) =>
+      prisma.profile.findUnique({ where: { name: trimmedName } }),
+    );
     if (existing) {
       return NextResponse.json({ error: "Name already taken" }, { status: 409 });
     }
@@ -33,7 +37,7 @@ export async function POST(req: Request) {
     const todayIso = new Date().toISOString().slice(0, 10);
     const schedule = createSeedSchedule(todayIso);
 
-    const profile = await prisma.$transaction(async (tx) => {
+    const profile = await dbQuery((prisma) => prisma.$transaction(async (tx) => {
       const newProfile = await tx.profile.create({ data: { name: trimmedName } });
 
       await tx.workoutTemplate.createMany({
@@ -71,7 +75,7 @@ export async function POST(req: Request) {
       });
 
       return newProfile;
-    });
+    }));
 
     return NextResponse.json({ id: profile.id, name: profile.name }, { status: 201 });
   } catch (err) {

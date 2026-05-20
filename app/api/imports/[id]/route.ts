@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbQuery } from "@/lib/prisma";
 import { getProfileId } from "@/lib/profile-cookie";
 import { describeDbError } from "@/lib/api-errors";
 import type { WorkoutImportDraft } from "@/lib/workout-types";
@@ -16,20 +16,24 @@ export async function PUT(req: Request, { params }: Params) {
     const { id } = await params;
     const body = (await req.json()) as Partial<WorkoutImportDraft>;
 
-    const existing = await prisma.workoutImportDraft.findUnique({ where: { id } });
+    const existing = await dbQuery((prisma) =>
+      prisma.workoutImportDraft.findUnique({ where: { id } }),
+    );
     if (!existing || existing.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updated = await prisma.workoutImportDraft.update({
-      where: { id },
-      data: {
-        ocrText: body.ocrText !== undefined ? body.ocrText : existing.ocrText,
-        status: body.status ?? existing.status,
-        workoutId: body.workoutId !== undefined ? body.workoutId : existing.workoutId,
-        error: body.error !== undefined ? body.error : existing.error,
-      },
-    });
+    const updated = await dbQuery((prisma) =>
+      prisma.workoutImportDraft.update({
+        where: { id },
+        data: {
+          ocrText: body.ocrText !== undefined ? body.ocrText : existing.ocrText,
+          status: body.status ?? existing.status,
+          workoutId: body.workoutId !== undefined ? body.workoutId : existing.workoutId,
+          error: body.error !== undefined ? body.error : existing.error,
+        },
+      }),
+    );
 
     const result: WorkoutImportDraft = {
       id: updated.id,
@@ -56,12 +60,14 @@ export async function DELETE(_req: Request, { params }: Params) {
 
     const { id } = await params;
 
-    const existing = await prisma.workoutImportDraft.findUnique({ where: { id } });
+    const existing = await dbQuery((prisma) =>
+      prisma.workoutImportDraft.findUnique({ where: { id } }),
+    );
     if (!existing || existing.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.workoutImportDraft.delete({ where: { id } });
+    await dbQuery((prisma) => prisma.workoutImportDraft.delete({ where: { id } }));
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/imports/[id] failed", err);

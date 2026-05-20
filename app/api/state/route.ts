@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbQuery } from "@/lib/prisma";
 import { getProfileId } from "@/lib/profile-cookie";
 import { mapDbWorkout } from "@/lib/db-mappers";
 import { describeDbError } from "@/lib/api-errors";
@@ -16,21 +16,23 @@ export async function GET() {
       return NextResponse.json({ error: "No profile selected" }, { status: 401 });
     }
 
-    const [workouts, scheduled, imports, profile] = await Promise.all([
-      prisma.workoutTemplate.findMany({
-        where: { profileId },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.scheduledWorkout.findMany({
-        where: { profileId },
-        orderBy: { date: "asc" },
-      }),
-      prisma.workoutImportDraft.findMany({
-        where: { profileId },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.profile.findUnique({ where: { id: profileId }, select: { id: true } }),
-    ]);
+    const [workouts, scheduled, imports, profile] = await dbQuery((prisma) =>
+      Promise.all([
+        prisma.workoutTemplate.findMany({
+          where: { profileId },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.scheduledWorkout.findMany({
+          where: { profileId },
+          orderBy: { date: "asc" },
+        }),
+        prisma.workoutImportDraft.findMany({
+          where: { profileId },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.profile.findUnique({ where: { id: profileId }, select: { id: true } }),
+      ]),
+    );
 
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -81,7 +83,8 @@ export async function PUT(req: Request) {
     const scheduled = body.scheduled ?? [];
     const imports = body.imports ?? [];
 
-    await prisma.$transaction(async (tx) => {
+    await dbQuery((prisma) =>
+      prisma.$transaction(async (tx) => {
       // Order matters: scheduled and imports reference workouts.
       await tx.scheduledWorkout.deleteMany({ where: { profileId } });
       await tx.workoutImportDraft.deleteMany({ where: { profileId } });
@@ -139,7 +142,8 @@ export async function PUT(req: Request) {
           })),
         });
       }
-    });
+    }),
+    );
 
     return NextResponse.json({ ok: true });
   } catch (err) {

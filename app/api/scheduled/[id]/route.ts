@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbQuery } from "@/lib/prisma";
 import { getProfileId } from "@/lib/profile-cookie";
 import { describeDbError } from "@/lib/api-errors";
 import type { ScheduledWorkout } from "@/lib/workout-types";
@@ -16,7 +16,9 @@ export async function PUT(req: Request, { params }: Params) {
     const { id } = await params;
     const body = (await req.json()) as Partial<ScheduledWorkout>;
 
-    const existing = await prisma.scheduledWorkout.findUnique({ where: { id } });
+    const existing = await dbQuery((prisma) =>
+      prisma.scheduledWorkout.findUnique({ where: { id } }),
+    );
     if (!existing || existing.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -32,16 +34,18 @@ export async function PUT(req: Request, { params }: Params) {
           ? new Date(body.completedAt)
           : existing.completedAt;
 
-    const updated = await prisma.scheduledWorkout.update({
-      where: { id },
-      data: {
-        status: nextStatus,
-        stepStatuses: body.stepStatuses !== undefined ? body.stepStatuses : existing.stepStatuses,
-        notes: body.notes !== undefined ? body.notes : existing.notes,
-        completedAt,
-        activeStepIndex: body.activeStepIndex !== undefined ? body.activeStepIndex : existing.activeStepIndex,
-      },
-    });
+    const updated = await dbQuery((prisma) =>
+      prisma.scheduledWorkout.update({
+        where: { id },
+        data: {
+          status: nextStatus,
+          stepStatuses: body.stepStatuses !== undefined ? body.stepStatuses : existing.stepStatuses,
+          notes: body.notes !== undefined ? body.notes : existing.notes,
+          completedAt,
+          activeStepIndex: body.activeStepIndex !== undefined ? body.activeStepIndex : existing.activeStepIndex,
+        },
+      }),
+    );
 
     const result: ScheduledWorkout = {
       id: updated.id,
@@ -70,12 +74,14 @@ export async function DELETE(_req: Request, { params }: Params) {
 
     const { id } = await params;
 
-    const existing = await prisma.scheduledWorkout.findUnique({ where: { id } });
+    const existing = await dbQuery((prisma) =>
+      prisma.scheduledWorkout.findUnique({ where: { id } }),
+    );
     if (!existing || existing.profileId !== profileId) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.scheduledWorkout.delete({ where: { id } });
+    await dbQuery((prisma) => prisma.scheduledWorkout.delete({ where: { id } }));
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/scheduled/[id] failed", err);

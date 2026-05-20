@@ -29,7 +29,7 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?sslmode=require"
 
 Notes:
 - For Railway proxy hosts (`*.proxy.rlwy.net`), TLS handling is done in `lib/prisma.ts`.
-- In Vercel, set `DATABASE_URL` in project Environment Variables for the environments you deploy.
+- In Vercel, set `DATABASE_URL` to your database provider's **public** connection URL (not a private/internal host). For Railway, use the `*.proxy.rlwy.net` URL from the Connect tab.
 
 ## Local Development
 
@@ -93,3 +93,5 @@ npx prisma db push --url 'postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?sslmode=r
   - Use Railway URL + current TLS logic in `lib/prisma.ts` (already configured).
 - UI stuck on Loading
   - Open browser devtools network tab and check `/api/profiles` response body.
+- `500 /api/profiles` + `Server has closed the connection`
+  - Usually means `DATABASE_URL` is wrong, the database is stopped, or Vercel is using a private DB host. Copy a fresh public URL from Railway/Neon, update Vercel env vars, and redeploy.
