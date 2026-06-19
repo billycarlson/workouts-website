@@ -6,7 +6,7 @@
  */
 export function describeDbError(err: unknown): string {
   if (!process.env.DATABASE_URL) {
-    return "Database is not configured (DATABASE_URL is missing).";
+    return "Database is not configured (DATABASE_URL is missing). For local dev: copy .env.example to .env.local, paste your Postgres URL from Vercel → Settings → Environment Variables, then restart npm run dev.";
   }
 
   const message = err instanceof Error ? err.message : String(err);

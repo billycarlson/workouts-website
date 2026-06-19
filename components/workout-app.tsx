@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCookie, getCookie } from "cookies-next/client";
+import { DisplayModeToggle } from "@/components/display-mode-toggle";
+import { RasterCell, RasterGrid } from "@/components/raster";
+import {
+  readDisplayXxlEnabled,
+  writeDisplayXxlEnabled,
+} from "@/lib/display-mode";
 import {
   exportWorkoutState,
   loadWorkoutState,
@@ -110,8 +116,23 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
   const [ocrProgress, setOcrProgress] = useState("");
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [displayXxl, setDisplayXxl] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const enabled = readDisplayXxlEnabled();
+    setDisplayXxl(enabled);
+    writeDisplayXxlEnabled(enabled);
+  }, []);
+
+  function toggleDisplayXxl() {
+    setDisplayXxl((current) => {
+      const next = !current;
+      writeDisplayXxlEnabled(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -417,6 +438,8 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       <ActiveWorkout
         scheduledWorkout={activeScheduledWorkout}
         workout={activeWorkout}
+        displayXxl={displayXxl}
+        onToggleDisplayXxl={toggleDisplayXxl}
         onBack={() => setActiveScheduleId(null)}
         onUpdate={updateScheduledWorkout}
       />
@@ -436,58 +459,72 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
           <button type="button" className="menu-button" onClick={() => setMenuOpen(true)}>
             Menu
           </button>
-          <span>
-            {todayLabel.day} {todayLabel.number} {todayLabel.month}
-          </span>
+          <div className="home-topbar-actions">
+            <DisplayModeToggle
+              compact
+              enabled={displayXxl}
+              onToggle={toggleDisplayXxl}
+            />
+            <span>
+              {todayLabel.day} {todayLabel.number} {todayLabel.month}
+            </span>
+          </div>
         </header>
 
-        <section className="hero-grid today-hero">
-          <div className="hero-copy">
-            <p className="eyebrow">Today&apos;s workout</p>
-            <h1>{primaryTodayWorkout ? primaryTodayWorkout.name : "No workout scheduled"}</h1>
-            {primaryTodayWorkout && primaryTodayScheduledWorkout ? (
-              <div className="hero-actions">
-                <button
-                  type="button"
-                  onClick={() => setActiveScheduleId(primaryTodayScheduledWorkout.id)}
-                >
-                  Start workout
-                </button>
-                <span>{statusLabel(primaryTodayScheduledWorkout.status)}</span>
-              </div>
-            ) : (
-              <div className="hero-actions">
-                <button type="button" onClick={() => setChooserOpen(true)}>
-                  Choose workout for today
-                </button>
-                <Link href="/calendar">Open calendar</Link>
-              </div>
-            )}
+        <RasterGrid columns={12} columnsS={4} columnsL={16} className="hero-grid today-hero">
+          <RasterCell span="1..8" spanS="row" spanL="1..10" className="hero-spacer" aria-hidden="true">
+            <span className="hero-date-mark">
+              {todayLabel.day} {todayLabel.number}
+            </span>
+          </RasterCell>
+          <RasterCell span="9..12" spanS="row" spanL="11..16">
+            <div className="hero-copy">
+              <p className="eyebrow">Today&apos;s workout</p>
+              <h1>{primaryTodayWorkout ? primaryTodayWorkout.name : "No workout scheduled"}</h1>
+              {primaryTodayWorkout && primaryTodayScheduledWorkout ? (
+                <div className="hero-actions">
+                  <button
+                    type="button"
+                    onClick={() => setActiveScheduleId(primaryTodayScheduledWorkout.id)}
+                  >
+                    Start workout
+                  </button>
+                  <span>{statusLabel(primaryTodayScheduledWorkout.status)}</span>
+                </div>
+              ) : (
+                <div className="hero-actions">
+                  <button type="button" onClick={() => setChooserOpen(true)}>
+                    Choose workout for today
+                  </button>
+                  <Link href="/calendar">Open calendar</Link>
+                </div>
+              )}
 
-            {additionalTodayWorkouts.length > 0 ? (
-              <ul className="hero-extra">
-                {additionalTodayWorkouts.map((scheduledWorkout) => {
-                  const workout = state.workouts.find(
-                    (item) => item.id === scheduledWorkout.workoutId,
-                  );
-                  if (!workout) return null;
+              {additionalTodayWorkouts.length > 0 ? (
+                <ul className="hero-extra">
+                  {additionalTodayWorkouts.map((scheduledWorkout) => {
+                    const workout = state.workouts.find(
+                      (item) => item.id === scheduledWorkout.workoutId,
+                    );
+                    if (!workout) return null;
 
-                  return (
-                    <li key={scheduledWorkout.id}>
-                      <span>{workout.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveScheduleId(scheduledWorkout.id)}
-                      >
-                        Start
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-        </section>
+                    return (
+                      <li key={scheduledWorkout.id}>
+                        <span>{workout.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveScheduleId(scheduledWorkout.id)}
+                        >
+                          Start
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+          </RasterCell>
+        </RasterGrid>
 
         {chooserOpen ? (
           <section className="section-block">
@@ -495,16 +532,17 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
               <span>01</span>
               <h2>Choose today&apos;s workout</h2>
             </div>
-            <div className="workout-grid">
+            <RasterGrid columns={12} columnsS={4} columnsL={16} className="workout-grid">
               {state.workouts.map((workout) => (
-                <WorkoutCard
-                  key={workout.id}
-                  workout={workout}
-                  scheduleLabel="Set as today&apos;s workout"
-                  onSchedule={() => setWorkoutForToday(workout.id)}
-                />
+                <RasterCell key={workout.id} span={3} spanS="row" spanL={4}>
+                  <WorkoutCard
+                    workout={workout}
+                    scheduleLabel="Set as today&apos;s workout"
+                    onSchedule={() => setWorkoutForToday(workout.id)}
+                  />
+                </RasterCell>
               ))}
-            </div>
+            </RasterGrid>
           </section>
         ) : null}
 
@@ -527,6 +565,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
                 <Link href="/import">Add from screenshot</Link>
                 <Link href="/profiles">Profiles</Link>
               </nav>
+              <DisplayModeToggle enabled={displayXxl} onToggle={toggleDisplayXxl} />
               <button
                 type="button"
                 onClick={() => {
@@ -548,7 +587,14 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       <main className="book-shell">
         <header className="view-topbar">
           <Link href="/">Back to today</Link>
-          <h1>Calendar</h1>
+          <div className="view-topbar-actions">
+            <DisplayModeToggle
+              compact
+              enabled={displayXxl}
+              onToggle={toggleDisplayXxl}
+            />
+            <h1>Calendar</h1>
+          </div>
         </header>
 
         <section className="section-block">
@@ -604,7 +650,14 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       <main className="book-shell">
         <header className="view-topbar">
           <Link href="/">Back to today</Link>
-          <h1>Workout library</h1>
+          <div className="view-topbar-actions">
+            <DisplayModeToggle
+              compact
+              enabled={displayXxl}
+              onToggle={toggleDisplayXxl}
+            />
+            <h1>Workout library</h1>
+          </div>
         </header>
 
         <section className="section-block">
@@ -627,19 +680,22 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
             </span>
           </div>
 
-          <div className="workout-grid">
+          <RasterGrid columns={12} columnsS={4} columnsL={16} className="workout-grid">
             {state.workouts.map((workout) => (
-              <WorkoutCard
-                key={workout.id}
-                workout={workout}
-                scheduleLabel="Schedule on selected date"
-                onSchedule={() => scheduleWorkout(workout.id, state.selectedDate)}
-              />
+              <RasterCell key={workout.id} span={3} spanS="row" spanL={4}>
+                <WorkoutCard
+                  workout={workout}
+                  scheduleLabel="Schedule on selected date"
+                  onSchedule={() => scheduleWorkout(workout.id, state.selectedDate)}
+                />
+              </RasterCell>
             ))}
             {state.workouts.length === 0 ? (
-              <p className="empty-copy">No workouts saved yet.</p>
+              <RasterCell span="row">
+                <p className="empty-copy">No workouts saved yet.</p>
+              </RasterCell>
             ) : null}
-          </div>
+          </RasterGrid>
         </section>
       </main>
     );
@@ -649,7 +705,14 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     <main className="book-shell">
       <header className="view-topbar">
         <Link href="/">Back to today</Link>
-        <h1>Add from screenshot</h1>
+        <div className="view-topbar-actions">
+          <DisplayModeToggle
+            compact
+            enabled={displayXxl}
+            onToggle={toggleDisplayXxl}
+          />
+          <h1>Add from screenshot</h1>
+        </div>
       </header>
 
       <section className="section-block">
@@ -739,54 +802,55 @@ function CalendarBoard({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div className="calendar-grid">
+    <RasterGrid columns={7} columnsS={2} columnsL={14} className="calendar-grid">
       {days.map((date) => {
         const label = getDayLabel(date);
         const dayWorkouts = scheduled.filter((item) => item.date === date);
 
         return (
-          <div
-            className={`calendar-day ${date === selectedDate ? "is-selected" : ""}`}
-            key={date}
-          >
-            <button
-              className="day-select"
-              type="button"
-              onClick={() => onSelectDate(date)}
+          <RasterCell key={date} spanS="row">
+            <div
+              className={`calendar-day ${date === selectedDate ? "is-selected" : ""}`}
             >
-              <span className="day-name">{label.day}</span>
-              <span className="day-number">{label.number}</span>
-              <span className="day-month">{label.month}</span>
-            </button>
-            {dayWorkouts.map((scheduledWorkout) => {
-              const workout = workouts.find(
-                (item) => item.id === scheduledWorkout.workoutId,
-              );
+              <button
+                className="day-select"
+                type="button"
+                onClick={() => onSelectDate(date)}
+              >
+                <span className="day-name">{label.day}</span>
+                <span className="day-number">{label.number}</span>
+                <span className="day-month">{label.month}</span>
+              </button>
+              {dayWorkouts.map((scheduledWorkout) => {
+                const workout = workouts.find(
+                  (item) => item.id === scheduledWorkout.workoutId,
+                );
 
-              if (!workout) return null;
+                if (!workout) return null;
 
-              return (
-                <span className="calendar-pill" key={scheduledWorkout.id}>
-                  {workout.name}
-                  <button
-                    type="button"
-                    onClick={() => onStart(scheduledWorkout.id)}
-                  >
-                    Start
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onRemove(scheduledWorkout.id)}
-                  >
-                    Remove
-                  </button>
-                </span>
-              );
-            })}
-          </div>
+                return (
+                  <span className="calendar-pill" key={scheduledWorkout.id}>
+                    {workout.name}
+                    <button
+                      type="button"
+                      onClick={() => onStart(scheduledWorkout.id)}
+                    >
+                      Start
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(scheduledWorkout.id)}
+                    >
+                      Remove
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          </RasterCell>
         );
       })}
-    </div>
+    </RasterGrid>
   );
 }
 
@@ -821,11 +885,15 @@ function WorkoutCard({
 function ActiveWorkout({
   scheduledWorkout,
   workout,
+  displayXxl,
+  onToggleDisplayXxl,
   onBack,
   onUpdate,
 }: {
   scheduledWorkout: ScheduledWorkout;
   workout: WorkoutTemplate;
+  displayXxl: boolean;
+  onToggleDisplayXxl: () => void;
   onBack: () => void;
   onUpdate: (id: string, updates: Partial<ScheduledWorkout>) => void;
 }) {
@@ -880,7 +948,14 @@ function ActiveWorkout({
         <button type="button" onClick={onBack}>
           Back
         </button>
-        <span>{scheduledWorkout.date}</span>
+        <div className="active-topbar-actions">
+          <DisplayModeToggle
+            compact
+            enabled={displayXxl}
+            onToggle={onToggleDisplayXxl}
+          />
+          <span>{scheduledWorkout.date}</span>
+        </div>
       </div>
       <section className="active-card">
         <h1>{workout.name}</h1>

@@ -85,7 +85,10 @@ npx prisma db push --url 'postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?sslmode=r
 
 ## Troubleshooting
 
-- `500 /api/profiles` + `DATABASE_URL is missing`
+- `DATABASE_URL is missing` on **localhost**
+  - Copy `.env.example` to `.env.local`, paste your Postgres URL, then restart `npm run dev`.
+  - Easiest source: Vercel project → Settings → Environment Variables → `DATABASE_URL` (Development), or pull with `vercel env pull .env.local` after `vercel login`.
+- `500 /api/profiles` + `DATABASE_URL is missing` on **Vercel**
   - Add `DATABASE_URL` in Vercel env vars and redeploy.
 - `P1000 Authentication failed`
   - Re-copy connection string or rotate DB password.

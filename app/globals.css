@@ -1,3 +1,4 @@
+@import url("https://rsms.me/raster/raster.grid.css");
 @import "tailwindcss";
 
 :root {
@@ -11,6 +12,22 @@
   --success: #145c2a;
   --warning: #755400;
   --danger: #8f1d1d;
+
+  /* Layout scale: mobile → 2500px canvas */
+  --page-max: 2500px;
+  --page-gutter: clamp(1rem, 2.5vw, 5rem);
+  --section-gap: clamp(2.5rem, 4vw, 6rem);
+  --calendar-day-min-h: clamp(180px, 42vw, 240px);
+  --hero-title-size: clamp(2.75rem, 9vw, 4.75rem);
+  --day-number-size: clamp(3.5rem, 20vw, 8rem);
+  --hero-copy-max: none;
+
+  /* Raster rhythm (rsms.me/raster) — spacing for r-grid gaps */
+  --fontSize: 14px;
+  --lineHeight: calc(var(--fontSize) * 1.5);
+  --baseline: calc(var(--lineHeight) / 2);
+  --columnGap: clamp(1rem, 2vw, calc(var(--lineHeight) * 2));
+  --rowGap: var(--lineHeight);
 }
 
 @theme inline {
@@ -60,16 +77,47 @@ button {
 .book-shell {
   display: flex;
   flex-direction: column;
-  gap: clamp(2.5rem, 6vw, 5rem);
+  gap: var(--section-gap);
   margin: 0 auto;
-  max-width: 1510px;
-  padding: clamp(1.25rem, 4.5vw, 4.5rem);
+  max-width: var(--page-max);
+  padding: var(--page-gutter);
+  width: 100%;
+}
+
+r-grid {
+  grid-column-gap: var(--columnGap);
+  grid-row-gap: var(--rowGap);
+  width: 100%;
+}
+
+r-grid > r-cell {
+  min-width: 0;
+}
+
+.raster-page hr,
+.section-block > hr {
+  border: 0;
+  background: var(--foreground);
+  height: 2px;
+  margin: var(--lineHeight) 0;
+  width: 100%;
 }
 
 .hero-grid {
-  display: grid;
-  gap: clamp(1.25rem, 2vw, 2rem);
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  width: 100%;
+}
+
+.hero-spacer {
+  display: none;
+}
+
+.hero-date-mark {
+  color: var(--foreground);
+  font-family: "Helvetica Neue", Arial, var(--font-geist-sans), sans-serif;
+  font-size: clamp(5rem, 18vw, 12rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.78;
 }
 
 .hero-panel {
@@ -98,20 +146,21 @@ button {
 }
 
 .hero-copy {
-  border-top: 2px solid var(--foreground);
+  border-top: 4px solid var(--foreground);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  max-width: var(--hero-copy-max);
   padding-top: 1rem;
 }
 
 .hero-copy h1 {
-  font-size: clamp(2.6rem, 6vw, 6.8rem);
+  font-size: var(--hero-title-size);
   font-weight: 800;
   letter-spacing: -0.025em;
   line-height: 0.92;
   margin: 0 0 1.25rem;
-  max-width: 10ch;
+  max-width: 12ch;
 }
 
 .hero-copy p:not(.eyebrow),
@@ -212,15 +261,14 @@ label select {
 }
 
 .workout-grid {
-  display: grid;
-  gap: clamp(1rem, 2vw, 1.5rem);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
 }
 
 .workout-card {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  height: 100%;
   padding: 1rem;
 }
 
@@ -377,9 +425,7 @@ button:disabled {
 }
 
 .calendar-grid {
-  display: grid;
-  gap: 1px;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: 100%;
 }
 
 .calendar-day {
@@ -389,8 +435,9 @@ button:disabled {
   color: var(--foreground);
   display: flex;
   flex-direction: column;
-  min-height: 220px;
-  padding: 0.8rem;
+  height: 100%;
+  min-height: var(--calendar-day-min-h);
+  padding: clamp(0.65rem, 1.2vw, 1.1rem);
   text-align: left;
   text-transform: none;
 }
@@ -424,7 +471,7 @@ button:disabled {
 }
 
 .day-number {
-  font-size: clamp(3.5rem, 8vw, 7rem);
+  font-size: var(--day-number-size);
   line-height: 0.9;
   margin: 0.5rem 0;
 }
@@ -459,9 +506,10 @@ button:disabled {
   flex-direction: column;
   gap: 1rem;
   margin: 0 auto;
-  max-width: 900px;
+  max-width: min(100%, clamp(900px, 72vw, 1400px));
   min-height: 100vh;
-  padding: clamp(1rem, 4vw, 2rem);
+  padding: var(--page-gutter);
+  width: 100%;
 }
 
 .active-topbar {
@@ -618,49 +666,70 @@ button:disabled {
   color: var(--foreground);
 }
 
-@media (max-width: 900px) {
-  .hero-grid {
+/* Responsive layout: mobile-first through 2500px canvas */
+@media (min-width: 900px) {
+  :root {
+    --calendar-day-min-h: clamp(200px, 18vw, 280px);
+    --hero-title-size: clamp(2.75rem, 5vw, 7rem);
+    --day-number-size: clamp(3.5rem, 5vw, 8rem);
+    --hero-copy-max: 34rem;
+  }
+
+  .hero-spacer {
+    align-items: flex-end;
     display: flex;
-    flex-direction: column;
+    min-height: 320px;
   }
 
-  .hero-grid,
-  .workout-grid {
-    grid-template-columns: 1fr;
+  .hero-date-mark {
+    font-size: clamp(6rem, 14vw, 18rem);
   }
 
-  .hero-panel {
-    aspect-ratio: auto;
-    min-height: 220px;
-  }
-
-  .hero-number {
-    font-size: clamp(7rem, 38vw, 13rem);
-  }
-
-  .hero-copy {
-    border-top: 1px solid var(--foreground);
-  }
-
-  .hero-copy h1 {
-    font-size: clamp(3rem, 14vw, 5rem);
-    max-width: 9ch;
-  }
-
-  .calendar-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .calendar-tools,
+  .backup-actions {
+    align-items: end;
+    flex-direction: row;
   }
 }
 
-@media (max-width: 640px) {
-  .book-shell {
-    padding: 1rem;
+@media (min-width: 1200px) {
+  :root {
+    --calendar-day-min-h: clamp(220px, 16vw, 300px);
+  }
+}
+
+@media (min-width: 1600px) {
+  :root {
+    --hero-title-size: clamp(3rem, 4vw, 8rem);
+    --day-number-size: clamp(4rem, 4vw, 9rem);
+    --hero-copy-max: 42rem;
   }
 
-  .hero-panel {
-    min-height: 220px;
+  .hero-date-mark {
+    font-size: clamp(7rem, 12vw, 22rem);
+  }
+}
+
+@media (min-width: 2000px) {
+  :root {
+    --page-gutter: clamp(2.5rem, 3vw, 6rem);
+    --calendar-day-min-h: clamp(240px, 14vw, 340px);
+    --hero-title-size: clamp(3.5rem, 3.5vw, 9rem);
+    --day-number-size: clamp(4.5rem, 3.5vw, 10rem);
+    --hero-copy-max: 52rem;
+    --columnGap: calc(var(--lineHeight) * 2.5);
   }
 
+  .hero-date-mark {
+    font-size: clamp(8rem, 10vw, 26rem);
+  }
+
+  .hero-copy h1 {
+    max-width: 14ch;
+  }
+}
+
+@media (max-width: 899px) {
   .calendar-tools,
   .backup-actions {
     align-items: stretch;
@@ -672,90 +741,11 @@ button:disabled {
   .active-metrics {
     grid-template-columns: 1fr;
   }
-
-  .calendar-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .calendar-day {
-    min-height: 180px;
-  }
 }
 
-/* Mobile-first safety pass: the workout screen has to work in-hand first. */
-.hero-grid {
-  display: flex;
-  flex-direction: column;
-}
-
-.hero-panel {
-  aspect-ratio: auto;
-  min-height: 190px;
-}
-
-.hero-number {
-  font-size: clamp(6rem, 34vw, 11rem);
-}
-
-.hero-copy {
-  border-top: 4px solid var(--foreground);
-}
-
-.hero-copy h1 {
-  font-size: clamp(3rem, 13vw, 4.75rem);
-  max-width: 9ch;
-}
-
-.calendar-grid,
-.workout-grid {
-  grid-template-columns: 1fr;
-}
-
-.day-number {
-  font-size: clamp(4rem, 24vw, 8rem);
-}
-
-@media (min-width: 641px) {
-  .calendar-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 901px) {
-  .hero-grid {
-    display: block;
-  }
-
-  .hero-panel {
-    aspect-ratio: 1364 / 502;
-    min-height: 320px;
-  }
-
-  .hero-number {
-    font-size: clamp(7rem, 22vw, 22rem);
-  }
-
-  .hero-copy {
-    border-top: 4px solid var(--foreground);
-    margin-left: auto;
-    max-width: 34rem;
-  }
-
-  .hero-copy h1 {
-    font-size: clamp(2.6rem, 6vw, 6.8rem);
-    max-width: 10ch;
-  }
-
-  .calendar-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-
-  .workout-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .day-number {
-    font-size: clamp(3.5rem, 8vw, 7rem);
+@media (max-width: 639px) {
+  .book-shell {
+    padding: 1rem;
   }
 }
 
@@ -831,4 +821,113 @@ button:disabled {
   padding: 0.75rem 0.9rem;
   text-decoration: none;
   text-transform: uppercase;
+}
+
+.home-topbar-actions,
+.view-topbar-actions,
+.active-topbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.display-mode-toggle {
+  background: transparent;
+  border-color: var(--hairline-subtle);
+  color: var(--foreground);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  min-height: 36px;
+  padding: 0.45rem 0.7rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.display-mode-toggle.is-on {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+.display-mode-toggle.is-compact {
+  min-height: 36px;
+}
+
+/* Garage / wall display — Raster xxxlarge scale (rsms.me/raster) */
+html.display-xxl {
+  --fontSize: 22px;
+  --lineHeight: calc(var(--fontSize) * 1.5);
+  --baseline: calc(var(--lineHeight) / 2);
+  --hero-title-size: clamp(4rem, 8vw, 10.5rem);
+  --day-number-size: clamp(5rem, 10vw, 14rem);
+  --calendar-day-min-h: clamp(280px, 22vw, 420px);
+  --columnGap: calc(var(--lineHeight) * 2);
+  --rowGap: calc(var(--lineHeight) * 1.25);
+}
+
+html.display-xxl .hero-date-mark {
+  font-size: clamp(8rem, 16vw, 28rem);
+}
+
+html.display-xxl .hero-copy h1,
+html.display-xxl .active-card h1 {
+  max-width: 12ch;
+}
+
+html.display-xxl .active-card h1 {
+  font-size: clamp(3.5rem, 10vw, 10.5rem);
+}
+
+html.display-xxl .active-number {
+  font-size: clamp(10rem, 24vw, 28rem);
+}
+
+html.display-xxl .active-step p {
+  font-size: clamp(2.5rem, 8vw, 6rem);
+}
+
+html.display-xxl .metric span {
+  font-size: clamp(4rem, 12vw, 8rem);
+}
+
+html.display-xxl .active-step-progress-track {
+  height: 12px;
+}
+
+html.display-xxl .active-step-progress-label,
+html.display-xxl .active-step-progress-label strong {
+  font-size: 1rem;
+}
+
+html.display-xxl .active-mode {
+  max-width: min(100%, 2200px);
+}
+
+html.display-xxl button,
+html.display-xxl .hero-actions a,
+html.display-xxl .hero-actions span,
+html.display-xxl .menu-links a {
+  font-size: 1rem;
+  min-height: 64px;
+  padding: 1rem 1.25rem;
+}
+
+html.display-xxl .menu-button,
+html.display-xxl .display-mode-toggle {
+  font-size: 0.85rem;
+  min-height: 48px;
+}
+
+html.display-xxl .calendar-pill button {
+  font-size: 0.9rem;
+  min-height: 52px;
+}
+
+html.display-xxl .workout-card h3 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+html.display-xxl .section-heading h2,
+html.display-xxl .view-topbar h1 {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
 }
