@@ -10,6 +10,12 @@ import {
   writeDisplayXxlEnabled,
 } from "@/lib/display-mode";
 import {
+  broadcastGarage,
+  readGarageActiveId,
+  subscribeGarage,
+  writeGarageActiveId,
+} from "@/lib/garage-sync";
+import {
   exportWorkoutState,
   loadWorkoutState,
   parseWorkoutStateExport,
@@ -26,7 +32,13 @@ import {
 
 const todayIso = toDateInputValue(new Date());
 
-type WorkoutAppView = "home" | "calendar" | "library" | "import";
+type WorkoutAppView =
+  | "home"
+  | "calendar"
+  | "library"
+  | "import"
+  | "garage-workout"
+  | "garage-plan";
 
 const emptyState: WorkoutAppState = {
   workouts: [],
@@ -133,6 +145,51 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       return next;
     });
   }
+
+  const isGarageWorkout = view === "garage-workout";
+  const isGaragePlan = view === "garage-plan";
+  const isGarageView = isGarageWorkout || isGaragePlan;
+
+  function beginActiveWorkout(id: string | null) {
+    setActiveScheduleId(id);
+  }
+
+  async function refreshStateFromServer() {
+    try {
+      const res = await fetch("/api/state");
+      if (!res.ok) return;
+      const data = (await res.json()) as WorkoutAppState;
+      setState({ ...data, selectedDate: data.selectedDate || todayIso });
+    } catch {
+      /* offline */
+    }
+  }
+
+  function notifyGarageRefresh() {
+    broadcastGarage({ type: "refresh" });
+  }
+
+  useEffect(() => {
+    if (!isGarageView) return;
+    const stored = readGarageActiveId();
+    if (stored) setActiveScheduleId(stored);
+  }, [isGarageView]);
+
+  useEffect(() => {
+    return subscribeGarage((message) => {
+      if (message.type === "active") {
+        setActiveScheduleId(message.id);
+      }
+      if (message.type === "refresh") {
+        void refreshStateFromServer();
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    writeGarageActiveId(activeScheduleId);
+    broadcastGarage({ type: "active", id: activeScheduleId });
+  }, [activeScheduleId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -347,6 +404,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       scheduled: [...current.scheduled, scheduledWorkout],
     }));
     syncPost("/api/scheduled", scheduledWorkout);
+    notifyGarageRefresh();
   }
 
   function setWorkoutForToday(workoutId: string) {
@@ -371,6 +429,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     });
     syncPost("/api/scheduled", scheduledWorkout);
     setChooserOpen(false);
+    notifyGarageRefresh();
   }
 
   function updateScheduledWorkout(
@@ -386,6 +445,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       ),
     }));
     syncPut(`/api/scheduled/${id}`, updates);
+    notifyGarageRefresh();
   }
 
   function removeScheduledWorkout(id: string) {
@@ -396,6 +456,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       ),
     }));
     syncDelete(`/api/scheduled/${id}`);
+    notifyGarageRefresh();
   }
 
   function handleExport() {
@@ -433,14 +494,15 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     }
   }
 
-  if (activeScheduledWorkout && activeWorkout) {
+  if (activeScheduledWorkout && activeWorkout && !isGaragePlan) {
     return (
       <ActiveWorkout
         scheduledWorkout={activeScheduledWorkout}
         workout={activeWorkout}
         displayXxl={displayXxl}
+        garage={isGarageWorkout}
         onToggleDisplayXxl={toggleDisplayXxl}
-        onBack={() => setActiveScheduleId(null)}
+        onBack={() => beginActiveWorkout(null)}
         onUpdate={updateScheduledWorkout}
       />
     );
@@ -451,6 +513,138 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
         (scheduledWorkout) => scheduledWorkout.id !== primaryTodayScheduledWorkout.id,
       )
     : [];
+
+  if (view === "garage-workout") {
+    return (
+      <main className="garage-wall garage-workout-idle book-shell">
+        <header className="garage-wall-header">
+          <p className="eyebrow">Workout screen</p>
+          <span>
+            {todayLabel.day} {todayLabel.number} {todayLabel.month}
+          </span>
+        </header>
+
+        <RasterGrid columns={12} columnsS={4} columnsL={16} className="hero-grid today-hero garage-hero">
+          <RasterCell span="1..8" spanS="row" spanL="1..10" className="hero-spacer" aria-hidden="true">
+            <span className="hero-date-mark">
+              {todayLabel.day} {todayLabel.number}
+            </span>
+          </RasterCell>
+          <RasterCell span="9..12" spanS="row" spanL="11..16">
+            <div className="hero-copy">
+              <p className="eyebrow">Today&apos;s workout</p>
+              <h1>{primaryTodayWorkout ? primaryTodayWorkout.name : "No workout scheduled"}</h1>
+              {primaryTodayWorkout && primaryTodayScheduledWorkout ? (
+                <div className="hero-actions">
+                  <button
+                    type="button"
+                    onClick={() => beginActiveWorkout(primaryTodayScheduledWorkout.id)}
+                  >
+                    Start workout
+                  </button>
+                  <span>{statusLabel(primaryTodayScheduledWorkout.status)}</span>
+                </div>
+              ) : (
+                <p className="empty-copy">
+                  Schedule today&apos;s workout from your phone, then start it here.
+                </p>
+              )}
+
+              {additionalTodayWorkouts.length > 0 ? (
+                <ul className="hero-extra">
+                  {additionalTodayWorkouts.map((scheduledWorkout) => {
+                    const workout = state.workouts.find(
+                      (item) => item.id === scheduledWorkout.workoutId,
+                    );
+                    if (!workout) return null;
+
+                    return (
+                      <li key={scheduledWorkout.id}>
+                        <span>{workout.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => beginActiveWorkout(scheduledWorkout.id)}
+                        >
+                          Start
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+          </RasterCell>
+        </RasterGrid>
+      </main>
+    );
+  }
+
+  if (view === "garage-plan") {
+    return (
+      <main className="garage-wall garage-plan-wall book-shell">
+        <header className="garage-wall-header">
+          <p className="eyebrow">Plan screen</p>
+          <span>
+            {todayLabel.day} {todayLabel.number} {todayLabel.month}
+          </span>
+        </header>
+
+        <RasterGrid columns={12} columnsS={4} columnsL={16} className="garage-plan-grid">
+          <RasterCell span="1..9" spanS="row" spanL="1..11" className="garage-plan-calendar">
+            <CalendarBoard
+              days={getCalendarDays(state.selectedDate)}
+              selectedDate={state.selectedDate}
+              scheduled={state.scheduled}
+              workouts={state.workouts}
+              garage
+              onSelectDate={(date) =>
+                updateState((current) => ({ ...current, selectedDate: date }))
+              }
+              onStart={beginActiveWorkout}
+              onRemove={removeScheduledWorkout}
+            />
+          </RasterCell>
+
+          <RasterCell span="10..12" spanS="row" spanL="12..16" className="garage-plan-today">
+            <h2>Today</h2>
+            {todayWorkouts.length === 0 ? (
+              <p className="empty-copy">Nothing scheduled for today.</p>
+            ) : (
+              <ul className="garage-today-list">
+                {todayWorkouts.map((scheduledWorkout) => {
+                  const workout = state.workouts.find(
+                    (item) => item.id === scheduledWorkout.workoutId,
+                  );
+                  if (!workout) return null;
+
+                  const isActive = scheduledWorkout.id === activeScheduleId;
+
+                  return (
+                    <li key={scheduledWorkout.id} className={isActive ? "is-active" : ""}>
+                      <div>
+                        <strong>{workout.name}</strong>
+                        <span>{statusLabel(scheduledWorkout.status)}</span>
+                      </div>
+                      {isActive ? (
+                        <span className="garage-live-badge">Live on workout screen</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => beginActiveWorkout(scheduledWorkout.id)}
+                        >
+                          Start here
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </RasterCell>
+        </RasterGrid>
+      </main>
+    );
+  }
 
   if (view === "home") {
     return (
@@ -485,7 +679,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
                 <div className="hero-actions">
                   <button
                     type="button"
-                    onClick={() => setActiveScheduleId(primaryTodayScheduledWorkout.id)}
+                    onClick={() => beginActiveWorkout(primaryTodayScheduledWorkout.id)}
                   >
                     Start workout
                   </button>
@@ -513,7 +707,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
                         <span>{workout.name}</span>
                         <button
                           type="button"
-                          onClick={() => setActiveScheduleId(scheduledWorkout.id)}
+                          onClick={() => beginActiveWorkout(scheduledWorkout.id)}
                         >
                           Start
                         </button>
@@ -563,6 +757,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
                 <Link href="/calendar">Open calendar</Link>
                 <Link href="/library">Workout library</Link>
                 <Link href="/import">Add from screenshot</Link>
+                <Link href="/display">Garage displays</Link>
                 <Link href="/profiles">Profiles</Link>
               </nav>
               <DisplayModeToggle enabled={displayXxl} onToggle={toggleDisplayXxl} />
@@ -637,7 +832,7 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
             onSelectDate={(date) =>
               updateState((current) => ({ ...current, selectedDate: date }))
             }
-            onStart={(id) => setActiveScheduleId(id)}
+            onStart={(id) => beginActiveWorkout(id)}
             onRemove={removeScheduledWorkout}
           />
         </section>
@@ -792,6 +987,7 @@ function CalendarBoard({
   onSelectDate,
   onStart,
   onRemove,
+  garage = false,
 }: {
   days: string[];
   selectedDate: string;
@@ -800,6 +996,7 @@ function CalendarBoard({
   onSelectDate: (date: string) => void;
   onStart: (id: string) => void;
   onRemove: (id: string) => void;
+  garage?: boolean;
 }) {
   return (
     <RasterGrid columns={7} columnsS={2} columnsL={14} className="calendar-grid">
@@ -837,12 +1034,14 @@ function CalendarBoard({
                     >
                       Start
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onRemove(scheduledWorkout.id)}
-                    >
-                      Remove
-                    </button>
+                    {!garage ? (
+                      <button
+                        type="button"
+                        onClick={() => onRemove(scheduledWorkout.id)}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
                   </span>
                 );
               })}
@@ -886,6 +1085,7 @@ function ActiveWorkout({
   scheduledWorkout,
   workout,
   displayXxl,
+  garage = false,
   onToggleDisplayXxl,
   onBack,
   onUpdate,
@@ -893,6 +1093,7 @@ function ActiveWorkout({
   scheduledWorkout: ScheduledWorkout;
   workout: WorkoutTemplate;
   displayXxl: boolean;
+  garage?: boolean;
   onToggleDisplayXxl: () => void;
   onBack: () => void;
   onUpdate: (id: string, updates: Partial<ScheduledWorkout>) => void;
@@ -942,6 +1143,134 @@ function ActiveWorkout({
     });
   }
 
+  const stepBlock = step ? (
+    <div className="active-step">
+      <p>{step.label}</p>
+      {step.detail ? <span>{step.detail}</span> : null}
+      {stepMetrics.length > 0 ? (
+        <div className="active-metrics">
+          {stepMetrics.map((metric) => (
+            <Metric key={metric.label} label={metric.label} value={metric.value} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  ) : (
+    <p className="active-step">{workout.cleanInstructions || "No parsed steps yet."}</p>
+  );
+
+  const controlsBlock = (
+    <>
+      <div className="active-primary-controls">
+        <button
+          type="button"
+          className="active-secondary-action"
+          onClick={() =>
+            onUpdate(scheduledWorkout.id, {
+              activeStepIndex: Math.max(stepIndex - 1, 0),
+            })
+          }
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          className="active-primary-action"
+          onClick={() =>
+            onUpdate(scheduledWorkout.id, {
+              activeStepIndex: Math.min(stepIndex + 1, stepCount - 1),
+            })
+          }
+        >
+          Next
+        </button>
+      </div>
+      <section className="active-finish">
+        <p>Mark this exercise</p>
+        <div className="active-finish-actions">
+          <button type="button" onClick={() => setCurrentStepStatus("done")}>
+            Done
+          </button>
+          <button type="button" onClick={() => setCurrentStepStatus("modified")}>
+            Modified
+          </button>
+          <button type="button" onClick={() => setCurrentStepStatus("skipped")}>
+            Skip
+          </button>
+          <button type="button" onClick={() => setCurrentStepStatus("planned")}>
+            Reset
+          </button>
+        </div>
+        <small>
+          Current step status: {statusLabel(currentStepStatus)} ({markedStepCount}/{stepCount}{" "}
+          marked)
+        </small>
+      </section>
+      <section className="active-finish">
+        <p>Finish entire workout</p>
+        <div className="active-finish-actions">
+          <button type="button" onClick={() => setOverallStatus("done")}>
+            Done
+          </button>
+          <button type="button" onClick={() => setOverallStatus("modified")}>
+            Modified
+          </button>
+          <button type="button" onClick={() => setOverallStatus("skipped")}>
+            Skip
+          </button>
+          <button type="button" onClick={() => setOverallStatus("planned")}>
+            Reset
+          </button>
+        </div>
+        <small>Workout status: {statusLabel(scheduledWorkout.status)}</small>
+      </section>
+    </>
+  );
+
+  if (garage) {
+    return (
+      <main className="active-mode garage-wall book-shell">
+        <div className="active-topbar">
+          <button type="button" onClick={onBack}>
+            End workout
+          </button>
+          <span>{scheduledWorkout.date}</span>
+        </div>
+
+        <RasterGrid columns={12} columnsS={4} columnsL={16} className="garage-active-grid">
+          <RasterCell span="1..5" spanS="row" spanL="1..6" className="garage-active-side">
+            <p className="eyebrow">{workout.name}</p>
+            <div className="active-number-row">
+              <span className="active-number">{progress}</span>
+              <span>step</span>
+            </div>
+            <div className="active-step-progress">
+              <div className="active-step-progress-label">
+                <span>Steps marked</span>
+                <strong>
+                  {markedStepCount}/{stepCount}
+                </strong>
+              </div>
+              <div className="active-step-progress-track" aria-hidden="true">
+                <div
+                  className="active-step-progress-fill"
+                  style={{ width: `${stepCompletionPercent}%` }}
+                />
+              </div>
+            </div>
+          </RasterCell>
+
+          <RasterCell span="6..12" spanS="row" spanL="7..16" className="garage-active-main">
+            <div className="hero-copy garage-active-copy">
+              {stepBlock}
+            </div>
+            {controlsBlock}
+          </RasterCell>
+        </RasterGrid>
+      </main>
+    );
+  }
+
   return (
     <main className="active-mode">
       <div className="active-topbar">
@@ -977,89 +1306,8 @@ function ActiveWorkout({
             />
           </div>
         </div>
-        {step ? (
-          <div className="active-step">
-            <p>{step.label}</p>
-            {step.detail ? <span>{step.detail}</span> : null}
-            {stepMetrics.length > 0 ? (
-              <div className="active-metrics">
-                {stepMetrics.map((metric) => (
-                  <Metric
-                    key={metric.label}
-                    label={metric.label}
-                    value={metric.value}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <p className="active-step">
-            {workout.cleanInstructions || "No parsed steps yet."}
-          </p>
-        )}
-        <div className="active-primary-controls">
-          <button
-            type="button"
-            className="active-secondary-action"
-            onClick={() =>
-              onUpdate(scheduledWorkout.id, {
-                activeStepIndex: Math.max(stepIndex - 1, 0),
-              })
-            }
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className="active-primary-action"
-            onClick={() =>
-              onUpdate(scheduledWorkout.id, {
-                activeStepIndex: Math.min(stepIndex + 1, stepCount - 1),
-              })
-            }
-          >
-            Next
-          </button>
-        </div>
-        <section className="active-finish">
-          <p>Mark this exercise</p>
-          <div className="active-finish-actions">
-            <button type="button" onClick={() => setCurrentStepStatus("done")}>
-              Done
-            </button>
-            <button type="button" onClick={() => setCurrentStepStatus("modified")}>
-              Modified
-            </button>
-            <button type="button" onClick={() => setCurrentStepStatus("skipped")}>
-              Skip
-            </button>
-            <button type="button" onClick={() => setCurrentStepStatus("planned")}>
-              Reset
-            </button>
-          </div>
-          <small>
-            Current step status: {statusLabel(currentStepStatus)} ({markedStepCount}/{stepCount} marked)
-          </small>
-        </section>
-        <section className="active-finish">
-          <p>Finish entire workout</p>
-          <div className="active-finish-actions">
-            <button type="button" onClick={() => setOverallStatus("done")}>
-              Done
-            </button>
-            <button type="button" onClick={() => setOverallStatus("modified")}>
-              Modified
-            </button>
-            <button type="button" onClick={() => setOverallStatus("skipped")}>
-              Skip
-            </button>
-            <button type="button" onClick={() => setOverallStatus("planned")}>
-              Reset
-            </button>
-          </div>
-          <small>Workout status: {statusLabel(scheduledWorkout.status)}</small>
-        </section>
+        {stepBlock}
+        {controlsBlock}
         <label>
           Session notes
           <textarea
