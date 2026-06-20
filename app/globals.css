@@ -272,6 +272,116 @@ label select {
   padding: 1rem;
 }
 
+.workout-card-actions {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.workout-card-edit-link {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.workout-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 48rem;
+}
+
+.workout-editor-name {
+  font-weight: 600;
+}
+
+.workout-editor-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workout-editor-step {
+  border: 1px solid var(--hairline-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem;
+}
+
+.workout-editor-step label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.35rem;
+}
+
+.workout-editor-step-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.workout-editor-step-move {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.workout-editor-step-move button {
+  background: transparent;
+  border: 1px solid var(--hairline-subtle);
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
+}
+
+.workout-editor-step-move button:disabled {
+  opacity: 0.4;
+}
+
+.workout-editor-step-metrics {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workout-editor-video-preview {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.workout-editor-footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.workout-editor-save {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.workout-editor-save-button {
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 600;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+}
+
+@media (max-width: 639px) {
+  .workout-editor-step-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
 .import-log {
   display: grid;
   gap: 0.5rem;
@@ -962,6 +1072,18 @@ html.display-xxl .view-topbar h1 {
   align-content: end;
 }
 
+.garage-hero .hero-copy {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+}
+
+.garage-hero .hero-extra {
+  min-height: 0;
+  overflow: auto;
+}
+
 .garage-plan-grid {
   align-content: start;
 }
@@ -981,20 +1103,171 @@ html.display-xxl .view-topbar h1 {
 }
 
 .garage-active-main {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--rowGap);
+  justify-content: space-between;
+  min-height: 0;
+}
+
+.garage-active-primary {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   min-height: 0;
   overflow: auto;
 }
 
-.garage-active-copy {
-  border-top: 4px solid var(--foreground);
-  max-width: none;
+.garage-active-exercise-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 1.25rem;
+  justify-content: space-between;
+}
+
+.garage-active-exercise-name {
+  font-size: clamp(2.5rem, 6vw, 6rem);
+  line-height: 1.05;
+  margin: 0;
+  max-width: 18ch;
+}
+
+.garage-active-detail {
+  color: var(--muted);
+  font-size: clamp(1.1rem, 1.8vw, 1.6rem);
+  margin: 0;
+  max-width: 30ch;
+}
+
+.garage-active-metrics {
+  margin-top: 0.5rem;
+}
+
+.garage-active-side {
+  border-left: 1px solid var(--hairline-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-left: clamp(1rem, 2vw, 1.5rem);
+}
+
+.garage-active-progress {
+  font-size: clamp(1.75rem, 3.5vw, 3rem);
+  font-weight: 700;
+}
+
+.garage-active-progress-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.garage-active-next {
+  border-top: 1px solid var(--hairline-subtle);
   padding-top: 1rem;
 }
 
-.garage-active-copy .active-step p {
-  max-width: 16ch;
+.garage-active-next p:last-child {
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-weight: 600;
+  margin: 0.25rem 0 0;
+}
+
+.garage-manage-toggle {
+  background: transparent;
+  border: 1px solid var(--hairline-subtle);
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: auto;
+  min-height: 48px;
+  padding: 0.6rem 1rem;
+}
+
+.garage-manage-panel {
+  border-top: 1px solid var(--hairline-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 40vh;
+  overflow: auto;
+  padding-top: 1rem;
+}
+
+.active-step-label-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.exercise-video-thumb {
+  background: var(--surface);
+  border: 1px solid var(--hairline-subtle);
+  cursor: pointer;
+  display: grid;
+  flex-shrink: 0;
+  height: 64px;
+  overflow: hidden;
+  padding: 0;
+  place-items: center;
+  position: relative;
+  width: 96px;
+}
+
+.exercise-video-thumb img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.exercise-video-thumb-fallback {
+  background: var(--surface-strong);
+  height: 100%;
+  width: 100%;
+}
+
+.exercise-video-play {
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  font-size: 1.25rem;
+  position: absolute;
+}
+
+.exercise-video-player {
+  aspect-ratio: 16 / 9;
+  background: #000;
+  max-width: min(640px, 90vw);
+  position: relative;
+}
+
+.exercise-video-player iframe,
+.exercise-video-player video {
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.exercise-video-close {
+  background: rgba(0, 0, 0, 0.6);
+  border: 0;
+  color: #fff;
+  font-size: 1rem;
+  height: 32px;
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  width: 32px;
+  z-index: 1;
+}
+
+@media (max-width: 899px) {
+  .garage-active-side {
+    border-left: 0;
+    border-top: 1px solid var(--hairline-subtle);
+    padding-left: 0;
+    padding-top: 1rem;
+  }
 }
 
 .garage-wall-header {
@@ -1082,9 +1355,13 @@ html.display-xxl .active-mode.garage-wall {
   max-width: var(--page-max);
 }
 
-html.display-xxl .garage-active-copy .active-step p {
-  font-size: clamp(3rem, 6vw, 7rem);
+html.display-xxl .garage-active-exercise-name {
+  font-size: clamp(3.5rem, 9vw, 9rem);
   max-width: 14ch;
+}
+
+html.display-xxl .garage-active-detail {
+  font-size: clamp(1.4rem, 2.5vw, 2.25rem);
 }
 
 html.display-xxl .garage-plan-today h2 {

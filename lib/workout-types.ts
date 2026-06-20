@@ -20,6 +20,8 @@ export type ExerciseStep = {
   targetReps?: string;
   restSeconds?: number;
   restLabel?: string;
+  /** YouTube/Vimeo link or ID, or a direct video file URL (e.g. your own hosted clip). */
+  videoUrl?: string;
 };
 
 export type WorkoutTemplate = {

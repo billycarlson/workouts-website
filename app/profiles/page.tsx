@@ -125,6 +125,12 @@ export default function ProfilesPage() {
     router.refresh();
   }
 
+  function buildForProfile(id: string) {
+    setCookie("profileId", id, PROFILE_COOKIE_OPTIONS);
+    router.push("/library");
+    router.refresh();
+  }
+
   async function createProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -187,13 +193,23 @@ export default function ProfilesPage() {
 
         <div className="flex flex-col gap-3">
           {profiles.map((p) => (
-            <button
+            <div
               key={p.id}
-              onClick={() => selectProfile(p.id)}
-              className="w-full rounded-xl border border-current/20 px-5 py-4 text-left text-base font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              className="w-full rounded-xl border border-current/20 px-5 py-4 flex items-center justify-between gap-3"
             >
-              {p.name}
-            </button>
+              <button
+                onClick={() => selectProfile(p.id)}
+                className="text-left text-base font-medium hover:opacity-70 transition-opacity"
+              >
+                {p.name}
+              </button>
+              <button
+                onClick={() => buildForProfile(p.id)}
+                className="text-xs font-medium opacity-50 hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                Build for them
+              </button>
+            </div>
           ))}
         </div>
 

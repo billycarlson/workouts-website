@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCookie, getCookie } from "cookies-next/client";
 import { DisplayModeToggle } from "@/components/display-mode-toggle";
+import { ExerciseVideo } from "@/components/exercise-video";
 import { RasterCell, RasterGrid } from "@/components/raster";
 import {
   readDisplayXxlEnabled,
@@ -37,6 +38,7 @@ type WorkoutAppView =
   | "calendar"
   | "library"
   | "import"
+  | "workout-edit"
   | "garage-workout"
   | "garage-plan";
 
@@ -122,7 +124,13 @@ function statusLabel(status: WorkoutStatus) {
 }
 
 
-export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
+function WorkoutAppInner({
+  view = "home",
+  workoutId,
+}: {
+  view?: WorkoutAppView;
+  workoutId?: string;
+}) {
   const [state, setState] = useState<WorkoutAppState>(emptyState);
   const profileIdRef = useRef<string | null>(null);
   const [ocrProgress, setOcrProgress] = useState("");
@@ -430,6 +438,18 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     syncPost("/api/scheduled", scheduledWorkout);
     setChooserOpen(false);
     notifyGarageRefresh();
+  }
+
+  function updateWorkout(id: string, updates: Partial<WorkoutTemplate>) {
+    updateState((current) => ({
+      ...current,
+      workouts: current.workouts.map((workout) =>
+        workout.id === id
+          ? { ...workout, ...updates, updatedAt: new Date().toISOString() }
+          : workout,
+      ),
+    }));
+    syncPut(`/api/workouts/${id}`, updates);
   }
 
   function updateScheduledWorkout(
@@ -840,6 +860,33 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
     );
   }
 
+  if (view === "workout-edit") {
+    const workout = state.workouts.find((item) => item.id === workoutId);
+
+    return (
+      <main className="book-shell">
+        <header className="view-topbar">
+          <Link href="/library">Back to library</Link>
+          <h1>Edit workout</h1>
+        </header>
+
+        <section className="section-block">
+          {workout ? (
+            <WorkoutStepEditor
+              key={workout.id}
+              workout={workout}
+              onSave={(updates) => updateWorkout(workout.id, updates)}
+            />
+          ) : (
+            <p className="empty-copy">
+              That workout isn&apos;t loaded yet. Go back to the library and try again.
+            </p>
+          )}
+        </section>
+      </main>
+    );
+  }
+
   if (view === "library") {
     return (
       <main className="book-shell">
@@ -944,6 +991,10 @@ export function WorkoutApp({ view = "home" }: { view?: WorkoutAppView }) {
       </section>
     </main>
   );
+}
+
+export function WorkoutApp(props: { view?: WorkoutAppView; workoutId?: string }) {
+  return <WorkoutAppInner {...props} />;
 }
 
 function ImportLogRow({
@@ -1053,6 +1104,165 @@ function CalendarBoard({
   );
 }
 
+function WorkoutStepEditor({
+  workout,
+  onSave,
+}: {
+  workout: WorkoutTemplate;
+  onSave: (updates: Partial<WorkoutTemplate>) => void;
+}) {
+  const [name, setName] = useState(workout.name);
+  const [steps, setSteps] = useState<ExerciseStep[]>(workout.steps);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  function updateStep(index: number, updates: Partial<ExerciseStep>) {
+    setSteps((current) =>
+      current.map((step, stepIndex) => (stepIndex === index ? { ...step, ...updates } : step)),
+    );
+  }
+
+  function removeStep(index: number) {
+    setSteps((current) => current.filter((_, stepIndex) => stepIndex !== index));
+  }
+
+  function moveStep(index: number, direction: -1 | 1) {
+    setSteps((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function addStep() {
+    setSteps((current) => [
+      ...current,
+      { id: createId("step"), label: "New exercise", restSeconds: 60 },
+    ]);
+  }
+
+  function handleSave() {
+    onSave({ name, steps });
+    setSavedAt(Date.now());
+  }
+
+  return (
+    <div className="workout-editor">
+      <label className="workout-editor-name">
+        Workout name
+        <input value={name} onChange={(event) => setName(event.target.value)} />
+      </label>
+
+      <ul className="workout-editor-steps">
+        {steps.map((step, index) => (
+          <li key={step.id} className="workout-editor-step">
+            <div className="workout-editor-step-header">
+              <span className="eyebrow">Step {index + 1}</span>
+              <div className="workout-editor-step-move">
+                <button
+                  type="button"
+                  onClick={() => moveStep(index, -1)}
+                  disabled={index === 0}
+                  aria-label="Move step up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveStep(index, 1)}
+                  disabled={index === steps.length - 1}
+                  aria-label="Move step down"
+                >
+                  ↓
+                </button>
+                <button type="button" onClick={() => removeStep(index)}>
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            <label>
+              Exercise name
+              <input
+                value={step.label}
+                onChange={(event) => updateStep(index, { label: event.target.value })}
+              />
+            </label>
+
+            <label>
+              Detail / cue (optional)
+              <input
+                value={step.detail ?? ""}
+                onChange={(event) => updateStep(index, { detail: event.target.value })}
+              />
+            </label>
+
+            <div className="workout-editor-step-metrics">
+              <label>
+                Sets
+                <input
+                  value={step.targetSets ?? ""}
+                  onChange={(event) => updateStep(index, { targetSets: event.target.value })}
+                  placeholder="e.g. 3"
+                />
+              </label>
+              <label>
+                Reps
+                <input
+                  value={step.targetReps ?? ""}
+                  onChange={(event) => updateStep(index, { targetReps: event.target.value })}
+                  placeholder="e.g. 10-12"
+                />
+              </label>
+              <label>
+                Rest (seconds)
+                <input
+                  type="number"
+                  value={step.restSeconds ?? ""}
+                  onChange={(event) =>
+                    updateStep(index, {
+                      restSeconds: event.target.value ? Number(event.target.value) : undefined,
+                    })
+                  }
+                  placeholder="e.g. 60"
+                />
+              </label>
+            </div>
+
+            <label>
+              Video URL (YouTube, Vimeo, or a direct file link)
+              <input
+                value={step.videoUrl ?? ""}
+                onChange={(event) => updateStep(index, { videoUrl: event.target.value })}
+                placeholder="https://youtube.com/watch?v=..."
+              />
+            </label>
+            {step.videoUrl ? (
+              <div className="workout-editor-video-preview">
+                <ExerciseVideo url={step.videoUrl} label={step.label} />
+                <span className="empty-copy">Tap to preview</span>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+
+      <div className="workout-editor-footer">
+        <button type="button" onClick={addStep}>
+          Add step
+        </button>
+        <div className="workout-editor-save">
+          {savedAt ? <span className="empty-copy">Saved</span> : null}
+          <button type="button" className="workout-editor-save-button" onClick={handleSave}>
+            Save changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WorkoutCard({
   workout,
   onSchedule,
@@ -1074,9 +1284,14 @@ function WorkoutCard({
           ))}
         </div>
       ) : null}
-      <button type="button" onClick={onSchedule}>
-        {scheduleLabel}
-      </button>
+      <div className="workout-card-actions">
+        <button type="button" onClick={onSchedule}>
+          {scheduleLabel}
+        </button>
+        <Link href={`/library/${workout.id}`} className="workout-card-edit-link">
+          Edit steps
+        </Link>
+      </div>
     </article>
   );
 }
@@ -1099,11 +1314,13 @@ function ActiveWorkout({
   onUpdate: (id: string, updates: Partial<ScheduledWorkout>) => void;
 }) {
   const stepCount = Math.max(workout.steps.length, 1);
+  const [manageOpen, setManageOpen] = useState(false);
   const stepIndex = Math.min(
     Math.max(scheduledWorkout.activeStepIndex ?? 0, 0),
     stepCount - 1,
   );
   const step = workout.steps[stepIndex] ?? workout.steps[0];
+  const nextStep = workout.steps[stepIndex + 1];
   const progress = `${stepIndex + 1}/${stepCount}`;
   const stepStatuses = Array.from({ length: stepCount }, (_, index) => {
     return scheduledWorkout.stepStatuses?.[index] ?? "planned";
@@ -1145,7 +1362,10 @@ function ActiveWorkout({
 
   const stepBlock = step ? (
     <div className="active-step">
-      <p>{step.label}</p>
+      <div className="active-step-label-row">
+        <p>{step.label}</p>
+        <ExerciseVideo url={step.videoUrl} label={step.label} />
+      </div>
       {step.detail ? <span>{step.detail}</span> : null}
       {stepMetrics.length > 0 ? (
         <div className="active-metrics">
@@ -1159,32 +1379,35 @@ function ActiveWorkout({
     <p className="active-step">{workout.cleanInstructions || "No parsed steps yet."}</p>
   );
 
-  const controlsBlock = (
+  const navBlock = (
+    <div className="active-primary-controls">
+      <button
+        type="button"
+        className="active-secondary-action"
+        onClick={() =>
+          onUpdate(scheduledWorkout.id, {
+            activeStepIndex: Math.max(stepIndex - 1, 0),
+          })
+        }
+      >
+        Previous
+      </button>
+      <button
+        type="button"
+        className="active-primary-action"
+        onClick={() =>
+          onUpdate(scheduledWorkout.id, {
+            activeStepIndex: Math.min(stepIndex + 1, stepCount - 1),
+          })
+        }
+      >
+        Next
+      </button>
+    </div>
+  );
+
+  const manageBlock = (
     <>
-      <div className="active-primary-controls">
-        <button
-          type="button"
-          className="active-secondary-action"
-          onClick={() =>
-            onUpdate(scheduledWorkout.id, {
-              activeStepIndex: Math.max(stepIndex - 1, 0),
-            })
-          }
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          className="active-primary-action"
-          onClick={() =>
-            onUpdate(scheduledWorkout.id, {
-              activeStepIndex: Math.min(stepIndex + 1, stepCount - 1),
-            })
-          }
-        >
-          Next
-        </button>
-      </div>
       <section className="active-finish">
         <p>Mark this exercise</p>
         <div className="active-finish-actions">
@@ -1227,6 +1450,13 @@ function ActiveWorkout({
     </>
   );
 
+  const controlsBlock = (
+    <>
+      {navBlock}
+      {manageBlock}
+    </>
+  );
+
   if (garage) {
     return (
       <main className="active-mode garage-wall book-shell">
@@ -1238,33 +1468,50 @@ function ActiveWorkout({
         </div>
 
         <RasterGrid columns={12} columnsS={4} columnsL={16} className="garage-active-grid">
-          <RasterCell span="1..5" spanS="row" spanL="1..6" className="garage-active-side">
-            <p className="eyebrow">{workout.name}</p>
-            <div className="active-number-row">
-              <span className="active-number">{progress}</span>
-              <span>step</span>
-            </div>
-            <div className="active-step-progress">
-              <div className="active-step-progress-label">
-                <span>Steps marked</span>
-                <strong>
-                  {markedStepCount}/{stepCount}
-                </strong>
+          <RasterCell span="6..12" spanS="row" spanL="5..16" className="garage-active-main">
+            <div className="garage-active-primary">
+              <div className="garage-active-exercise-row">
+                <h1 className="garage-active-exercise-name">{step?.label ?? workout.name}</h1>
+                <ExerciseVideo url={step?.videoUrl} label={step?.label ?? workout.name} />
               </div>
-              <div className="active-step-progress-track" aria-hidden="true">
-                <div
-                  className="active-step-progress-fill"
-                  style={{ width: `${stepCompletionPercent}%` }}
-                />
-              </div>
+              {step?.detail ? <p className="garage-active-detail">{step.detail}</p> : null}
+              {stepMetrics.length > 0 ? (
+                <div className="active-metrics garage-active-metrics">
+                  {stepMetrics.map((metric) => (
+                    <Metric key={metric.label} label={metric.label} value={metric.value} />
+                  ))}
+                </div>
+              ) : null}
             </div>
+            {navBlock}
           </RasterCell>
 
-          <RasterCell span="6..12" spanS="row" spanL="7..16" className="garage-active-main">
-            <div className="hero-copy garage-active-copy">
-              {stepBlock}
-            </div>
-            {controlsBlock}
+          <RasterCell span="1..5" spanS="row" spanL="1..4" className="garage-active-side">
+            <p className="eyebrow">{workout.name}</p>
+            <span className="garage-active-progress">
+              {progress} <span className="garage-active-progress-label">step</span>
+            </span>
+            {nextStep ? (
+              <div className="garage-active-next">
+                <p className="eyebrow">Up next</p>
+                <p>{nextStep.label}</p>
+              </div>
+            ) : (
+              <div className="garage-active-next">
+                <p className="eyebrow">Up next</p>
+                <p>Last exercise</p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="garage-manage-toggle"
+              onClick={() => setManageOpen((open) => !open)}
+              aria-expanded={manageOpen}
+            >
+              {manageOpen ? "Hide tracking" : "Mark / finish workout"}
+            </button>
+            {manageOpen ? <div className="garage-manage-panel">{manageBlock}</div> : null}
           </RasterCell>
         </RasterGrid>
       </main>
