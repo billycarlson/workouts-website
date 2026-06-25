@@ -494,7 +494,7 @@ button,
   font-weight: 700;
   letter-spacing: 0.04em;
   min-height: 44px;
-  padding: 0.8rem 1rem;
+  padding: 0.5rem 1rem;
   text-transform: uppercase;
   touch-action: manipulation;
 }
@@ -644,6 +644,23 @@ button:disabled {
   margin: 0;
 }
 
+.active-workout-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.active-step-count {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .active-number-row {
   align-items: end;
   border-top: 2px solid var(--foreground);
@@ -734,6 +751,7 @@ button:disabled {
   display: grid;
   gap: 0.6rem;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr);
+  max-width: 26rem;
 }
 
 .active-secondary-action {
@@ -1018,8 +1036,8 @@ html.display-xxl .hero-actions a,
 html.display-xxl .hero-actions span,
 html.display-xxl .menu-links a {
   font-size: 1rem;
-  min-height: 64px;
-  padding: 1rem 1.25rem;
+  min-height: 52px;
+  padding: 0.65rem 1.25rem;
 }
 
 html.display-xxl .menu-button,
@@ -1126,10 +1144,10 @@ html.display-xxl .view-topbar h1 {
 }
 
 .garage-active-exercise-name {
-  font-size: clamp(2.5rem, 6vw, 6rem);
+  font-size: clamp(2rem, 4.5vw, 4.5rem);
   line-height: 1.05;
   margin: 0;
-  max-width: 18ch;
+  max-width: 20ch;
 }
 
 .garage-active-detail {
@@ -1152,7 +1170,7 @@ html.display-xxl .view-topbar h1 {
 }
 
 .garage-active-progress {
-  font-size: clamp(1.75rem, 3.5vw, 3rem);
+  font-size: clamp(1rem, 1.8vw, 1.6rem);
   font-weight: 700;
 }
 
@@ -1356,8 +1374,8 @@ html.display-xxl .active-mode.garage-wall {
 }
 
 html.display-xxl .garage-active-exercise-name {
-  font-size: clamp(3.5rem, 9vw, 9rem);
-  max-width: 14ch;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  max-width: 18ch;
 }
 
 html.display-xxl .garage-active-detail {
@@ -1375,4 +1393,311 @@ html.display-xxl .garage-plan-today h2 {
     padding-left: 0;
     padding-top: 1rem;
   }
+}
+
+/* Active workout: garage-wall overrides active-mode's narrower max-width */
+.active-mode.garage-wall {
+  max-width: var(--page-max);
+}
+
+/* ===== Garage Screensaver ===== */
+
+.garage-wall > .garage-screensaver {
+  flex: 1;
+  min-height: 0;
+}
+
+.garage-screensaver {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rowGap);
+  min-height: 0;
+}
+
+.garage-screensaver-top {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--hairline-subtle);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+}
+
+.garage-screensaver-date-block {
+  align-items: baseline;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.garage-screensaver-weekday,
+.garage-screensaver-month {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.garage-screensaver-datenum,
+.garage-screensaver-time {
+  font-family: "Helvetica Neue", Arial, var(--font-geist-sans), sans-serif;
+  font-size: clamp(3rem, 6vw, 7rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.88;
+}
+
+.garage-screensaver-stats {
+  display: flex;
+  gap: var(--columnGap);
+}
+
+.garage-stat {
+  border-top: 2px solid var(--foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 7rem;
+  padding-top: 0.5rem;
+}
+
+.garage-stat-value {
+  font-family: "Helvetica Neue", Arial, var(--font-geist-sans), sans-serif;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 0.85;
+}
+
+.garage-stat-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.garage-screensaver-week {
+  display: grid;
+  flex: 1;
+  gap: var(--columnGap);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.garage-week-day {
+  border-top: 1px solid var(--hairline-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 0.75rem;
+}
+
+.garage-week-day.is-today {
+  border-top: 2px solid var(--foreground);
+}
+
+.garage-week-dayname {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.garage-week-day.is-today .garage-week-dayname {
+  color: var(--foreground);
+}
+
+.garage-week-num {
+  font-family: "Helvetica Neue", Arial, var(--font-geist-sans), sans-serif;
+  font-size: clamp(1.5rem, 3vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  margin-bottom: 0.15rem;
+}
+
+.garage-week-workout {
+  border-top: 1px solid var(--hairline-subtle);
+  display: grid;
+  font-size: 0.78rem;
+  gap: 0.35rem;
+  padding-top: 0.4rem;
+}
+
+.garage-week-workout span {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.garage-week-workout.is-done span,
+.garage-week-workout.is-modified span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.garage-week-workout button {
+  font-size: 0.72rem;
+  justify-self: start;
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+}
+
+/* ===== Garage Filmstrip ===== */
+
+.garage-wall > .garage-filmstrip {
+  flex-shrink: 0;
+}
+
+.garage-filmstrip {
+  border-top: 1px solid var(--hairline-subtle);
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.65rem 0;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.garage-filmstrip::-webkit-scrollbar {
+  display: none;
+}
+
+.filmstrip-step {
+  background: transparent;
+  border: 1px solid var(--hairline-subtle);
+  color: var(--foreground);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 0.2rem;
+  letter-spacing: 0;
+  min-height: auto;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  text-transform: none;
+  width: 120px;
+}
+
+.filmstrip-step.is-active {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+.filmstrip-step.is-done,
+.filmstrip-step.is-skipped {
+  opacity: 0.45;
+}
+
+.filmstrip-step.is-modified {
+  opacity: 0.7;
+}
+
+.filmstrip-step-num {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.filmstrip-step.is-active .filmstrip-step-num {
+  opacity: 0.7;
+}
+
+.filmstrip-step-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Garage Screen 2 (in-workout) ===== */
+
+.garage-screen2-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+.garage-screen2-exercise {
+  border-right: 1px solid var(--hairline-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  justify-content: center;
+  min-height: 0;
+  padding-right: clamp(1rem, 2vw, 2rem);
+}
+
+.garage-screen2-name {
+  font-family: "Helvetica Neue", Arial, var(--font-geist-sans), sans-serif;
+  font-size: clamp(2.5rem, 7vw, 7rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 0.95;
+  margin: 0;
+  max-width: 16ch;
+}
+
+.garage-screen2-detail {
+  color: var(--muted);
+  font-size: clamp(1rem, 1.8vw, 1.5rem);
+  margin: 0;
+}
+
+.garage-screen2-metrics {
+  margin-top: 0.25rem;
+}
+
+.garage-screen2-video {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  padding-left: clamp(1rem, 2vw, 2rem);
+}
+
+.garage-screen2-video .exercise-video-player {
+  max-width: 100%;
+  width: 100%;
+}
+
+/* display-xxl overrides for new components */
+html.display-xxl .garage-screensaver-datenum,
+html.display-xxl .garage-screensaver-time {
+  font-size: clamp(4rem, 8vw, 10rem);
+}
+
+html.display-xxl .garage-stat-value {
+  font-size: clamp(3.5rem, 7vw, 7rem);
+}
+
+html.display-xxl .garage-week-num {
+  font-size: clamp(2rem, 4vw, 4.5rem);
+}
+
+html.display-xxl .garage-screen2-name {
+  font-size: clamp(3.5rem, 9vw, 9rem);
+}
+
+html.display-xxl .filmstrip-step {
+  width: 150px;
+}
+
+html.display-xxl .filmstrip-step-label {
+  font-size: 1rem;
+}
+
+html.display-xxl .filmstrip-step-num {
+  font-size: 0.82rem;
 }

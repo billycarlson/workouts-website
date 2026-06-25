@@ -123,6 +123,41 @@ function statusLabel(status: WorkoutStatus) {
   return "Planned";
 }
 
+function getWeekDays(): string[] {
+  const today = new Date();
+  const dow = today.getDay();
+  const offset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + offset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return toDateInputValue(d);
+  });
+}
+
+function getWorkoutsThisWeek(scheduled: ScheduledWorkout[]): number {
+  const days = new Set(getWeekDays());
+  return scheduled.filter(
+    (s) => days.has(s.date) && (s.status === "done" || s.status === "modified"),
+  ).length;
+}
+
+function getStreak(scheduled: ScheduledWorkout[]): number {
+  let streak = 0;
+  const check = new Date();
+  while (streak < 365) {
+    const iso = toDateInputValue(check);
+    const hit = scheduled.some(
+      (s) => s.date === iso && (s.status === "done" || s.status === "modified"),
+    );
+    if (!hit) break;
+    streak++;
+    check.setDate(check.getDate() - 1);
+  }
+  return streak;
+}
+
 
 function WorkoutAppInner({
   view = "home",
@@ -536,70 +571,68 @@ function WorkoutAppInner({
 
   if (view === "garage-workout") {
     return (
-      <main className="garage-wall garage-workout-idle book-shell">
-        <header className="garage-wall-header">
-          <p className="eyebrow">Workout screen</p>
-          <span>
-            {todayLabel.day} {todayLabel.number} {todayLabel.month}
-          </span>
-        </header>
-
-        <RasterGrid columns={12} columnsS={4} columnsL={16} className="hero-grid today-hero garage-hero">
-          <RasterCell span="1..8" spanS="row" spanL="1..10" className="hero-spacer" aria-hidden="true">
-            <span className="hero-date-mark">
-              {todayLabel.day} {todayLabel.number}
-            </span>
-          </RasterCell>
-          <RasterCell span="9..12" spanS="row" spanL="11..16">
-            <div className="hero-copy">
-              <p className="eyebrow">Today&apos;s workout</p>
-              <h1>{primaryTodayWorkout ? primaryTodayWorkout.name : "No workout scheduled"}</h1>
-              {primaryTodayWorkout && primaryTodayScheduledWorkout ? (
-                <div className="hero-actions">
-                  <button
-                    type="button"
-                    onClick={() => beginActiveWorkout(primaryTodayScheduledWorkout.id)}
-                  >
-                    Start workout
-                  </button>
-                  <span>{statusLabel(primaryTodayScheduledWorkout.status)}</span>
-                </div>
-              ) : (
-                <p className="empty-copy">
-                  Schedule today&apos;s workout from your phone, then start it here.
-                </p>
-              )}
-
-              {additionalTodayWorkouts.length > 0 ? (
-                <ul className="hero-extra">
-                  {additionalTodayWorkouts.map((scheduledWorkout) => {
-                    const workout = state.workouts.find(
-                      (item) => item.id === scheduledWorkout.workoutId,
-                    );
-                    if (!workout) return null;
-
-                    return (
-                      <li key={scheduledWorkout.id}>
-                        <span>{workout.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => beginActiveWorkout(scheduledWorkout.id)}
-                        >
-                          Start
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-            </div>
-          </RasterCell>
-        </RasterGrid>
+      <main className="garage-wall">
+        <GarageScreensaver
+          state={state}
+          onStart={beginActiveWorkout}
+        />
       </main>
     );
   }
 
   if (view === "garage-plan") {
+    if (activeScheduledWorkout && activeWorkout) {
+      const s2Steps = activeWorkout.steps;
+      const s2Count = Math.max(s2Steps.length, 1);
+      const s2Index = Math.min(
+        Math.max(activeScheduledWorkout.activeStepIndex ?? 0, 0),
+        s2Count - 1,
+      );
+      const s2Step = s2Steps[s2Index] ?? null;
+      const s2Metrics = s2Step
+        ? [
+            s2Step.targetSets ? { label: "Sets", value: s2Step.targetSets } : null,
+            s2Step.targetReps ? { label: "Reps", value: s2Step.targetReps } : null,
+            s2Step.restLabel || s2Step.restSeconds !== undefined
+              ? { label: "Rest", value: s2Step.restLabel ?? `${s2Step.restSeconds}s` }
+              : null,
+          ].filter((m): m is { label: string; value: string } => Boolean(m))
+        : [];
+
+      return (
+        <main className="garage-wall garage-screen2">
+          <header className="garage-wall-header">
+            <p className="eyebrow">{activeWorkout.name}</p>
+            <span>
+              {s2Index + 1} / {s2Count}
+            </span>
+          </header>
+          <RasterGrid columns={12} columnsS={4} columnsL={16} className="garage-screen2-grid">
+            <RasterCell span="1..8" spanS="row" spanL="1..10" className="garage-screen2-exercise">
+              <h1 className="garage-screen2-name">{s2Step?.label ?? activeWorkout.name}</h1>
+              {s2Step?.detail ? (
+                <p className="garage-screen2-detail">{s2Step.detail}</p>
+              ) : null}
+              {s2Metrics.length > 0 ? (
+                <div className="active-metrics garage-screen2-metrics">
+                  {s2Metrics.map((m) => (
+                    <Metric key={m.label} label={m.label} value={m.value} />
+                  ))}
+                </div>
+              ) : null}
+            </RasterCell>
+            <RasterCell span="9..12" spanS="row" spanL="11..16" className="garage-screen2-video">
+              <ExerciseVideo
+                url={s2Step?.videoUrl}
+                label={s2Step?.label ?? activeWorkout.name}
+                defaultExpanded
+              />
+            </RasterCell>
+          </RasterGrid>
+        </main>
+      );
+    }
+
     return (
       <main className="garage-wall garage-plan-wall book-shell">
         <header className="garage-wall-header">
@@ -1263,6 +1296,81 @@ function WorkoutStepEditor({
   );
 }
 
+function GarageScreensaver({
+  state,
+  onStart,
+}: {
+  state: WorkoutAppState;
+  onStart: (id: string) => void;
+}) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const weekdays = getWeekDays();
+  const thisWeek = getWorkoutsThisWeek(state.scheduled);
+  const streak = getStreak(state.scheduled);
+  const todayLabel = getDayLabel(todayIso);
+
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+
+  return (
+    <div className="garage-screensaver">
+      <div className="garage-screensaver-top">
+        <div className="garage-screensaver-date-block">
+          <span className="garage-screensaver-weekday">{dayNames[now.getDay()]}</span>
+          <span className="garage-screensaver-datenum">{todayLabel.number}</span>
+          <span className="garage-screensaver-month">{todayLabel.month}</span>
+        </div>
+        <span className="garage-screensaver-time">{hours}:{minutes}</span>
+      </div>
+
+      <div className="garage-screensaver-stats">
+        <div className="garage-stat">
+          <span className="garage-stat-value">{thisWeek}</span>
+          <small className="garage-stat-label">This week</small>
+        </div>
+        <div className="garage-stat">
+          <span className="garage-stat-value">{streak}</span>
+          <small className="garage-stat-label">Day streak</small>
+        </div>
+      </div>
+
+      <div className="garage-screensaver-week">
+        {weekdays.map((date) => {
+          const label = getDayLabel(date);
+          const dayWorkouts = state.scheduled.filter((s) => s.date === date);
+          const isToday = date === todayIso;
+          return (
+            <div key={date} className={`garage-week-day${isToday ? " is-today" : ""}`}>
+              <span className="garage-week-dayname">{label.day}</span>
+              <span className="garage-week-num">{label.number}</span>
+              {dayWorkouts.map((sw) => {
+                const workout = state.workouts.find((w) => w.id === sw.workoutId);
+                if (!workout) return null;
+                return (
+                  <div key={sw.id} className={`garage-week-workout is-${sw.status}`}>
+                    <span>{workout.name}</span>
+                    {isToday ? (
+                      <button type="button" onClick={() => onStart(sw.id)}>
+                        Start
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function WorkoutCard({
   workout,
   onSchedule,
@@ -1315,6 +1423,7 @@ function ActiveWorkout({
 }) {
   const stepCount = Math.max(workout.steps.length, 1);
   const [manageOpen, setManageOpen] = useState(false);
+  const filmstripRef = useRef<HTMLDivElement>(null);
   const stepIndex = Math.min(
     Math.max(scheduledWorkout.activeStepIndex ?? 0, 0),
     stepCount - 1,
@@ -1359,6 +1468,12 @@ function ActiveWorkout({
           : scheduledWorkout.status,
     });
   }
+
+  useEffect(() => {
+    if (!filmstripRef.current) return;
+    const activeEl = filmstripRef.current.querySelector<HTMLElement>(".is-active");
+    activeEl?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [stepIndex]);
 
   const stepBlock = step ? (
     <div className="active-step">
@@ -1514,6 +1629,29 @@ function ActiveWorkout({
             {manageOpen ? <div className="garage-manage-panel">{manageBlock}</div> : null}
           </RasterCell>
         </RasterGrid>
+
+        <div className="garage-filmstrip" ref={filmstripRef}>
+          {workout.steps.map((s, i) => {
+            const sStatus = stepStatuses[i];
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={[
+                  "filmstrip-step",
+                  i === stepIndex ? "is-active" : "",
+                  sStatus !== "planned" ? `is-${sStatus}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => onUpdate(scheduledWorkout.id, { activeStepIndex: i })}
+              >
+                <span className="filmstrip-step-num">{i + 1}</span>
+                <span className="filmstrip-step-label">{s.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </main>
     );
   }
@@ -1525,6 +1663,7 @@ function ActiveWorkout({
           Back
         </button>
         <div className="active-topbar-actions">
+          <span className="active-step-count">{progress} step</span>
           <DisplayModeToggle
             compact
             enabled={displayXxl}
@@ -1534,11 +1673,8 @@ function ActiveWorkout({
         </div>
       </div>
       <section className="active-card">
-        <h1>{workout.name}</h1>
-        <div className="active-number-row">
-          <span className="active-number">{progress}</span>
-          <span>step</span>
-        </div>
+        <p className="eyebrow active-workout-label">{workout.name}</p>
+        {stepBlock}
         <div className="active-step-progress">
           <div className="active-step-progress-label">
             <span>Steps marked</span>
@@ -1553,7 +1689,6 @@ function ActiveWorkout({
             />
           </div>
         </div>
-        {stepBlock}
         {controlsBlock}
         <label>
           Session notes

@@ -6,11 +6,13 @@ import { parseExerciseVideoUrl } from "@/lib/exercise-video";
 export function ExerciseVideo({
   url,
   label,
+  defaultExpanded = false,
 }: {
   url: string | undefined;
   label: string;
+  defaultExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const embed = parseExerciseVideoUrl(url);
 
   if (!embed) return null;
