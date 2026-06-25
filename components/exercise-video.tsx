@@ -52,7 +52,7 @@ export function ExerciseVideo({
         <video src={embed.src} controls autoPlay playsInline />
       ) : (
         <iframe
-          src={`${embed.embedUrl}?autoplay=1`}
+          src={`${embed.embedUrl}?autoplay=1&mute=1`}
           title={`${label} form video`}
           allow="autoplay; fullscreen; picture-in-picture"
           allowFullScreen

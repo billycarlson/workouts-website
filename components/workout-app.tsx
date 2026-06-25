@@ -97,13 +97,18 @@ function getWorkoutName(text: string, fallback: string) {
 
 function getCalendarDays(selectedDate: string) {
   const selected = new Date(`${selectedDate}T12:00:00`);
-  const start = new Date(selected);
-  start.setDate(selected.getDate() - selected.getDay());
+  const dow = selected.getDay();
+  const daysToMonday = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(selected);
+  monday.setDate(selected.getDate() + daysToMonday);
 
-  return Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    return toDateInputValue(date);
+  // Mon–Fri for 2 weeks = 10 days
+  return Array.from({ length: 10 }, (_, i) => {
+    const weekOffset = Math.floor(i / 5);
+    const dayOffset = i % 5;
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + weekOffset * 7 + dayOffset);
+    return toDateInputValue(d);
   });
 }
 
@@ -1083,7 +1088,7 @@ function CalendarBoard({
   garage?: boolean;
 }) {
   return (
-    <RasterGrid columns={7} columnsS={2} columnsL={14} className="calendar-grid">
+    <RasterGrid columns={5} columnsS={2} columnsL={10} className="calendar-grid">
       {days.map((date) => {
         const label = getDayLabel(date);
         const dayWorkouts = scheduled.filter((item) => item.date === date);
@@ -1674,7 +1679,27 @@ function ActiveWorkout({
       </div>
       <section className="active-card">
         <p className="eyebrow active-workout-label">{workout.name}</p>
-        {stepBlock}
+        {step ? (
+          <div className="active-step-label">
+            <p>{step.label}</p>
+            {step.detail ? <span className="active-step-detail">{step.detail}</span> : null}
+          </div>
+        ) : (
+          <p className="active-step">{workout.cleanInstructions || "No parsed steps yet."}</p>
+        )}
+        {step?.videoUrl ? (
+          <div className="active-video-area">
+            <ExerciseVideo url={step.videoUrl} label={step.label} />
+          </div>
+        ) : null}
+        {navBlock}
+        {step && stepMetrics.length > 0 ? (
+          <div className="active-metrics">
+            {stepMetrics.map((metric) => (
+              <Metric key={metric.label} label={metric.label} value={metric.value} />
+            ))}
+          </div>
+        ) : null}
         <div className="active-step-progress">
           <div className="active-step-progress-label">
             <span>Steps marked</span>
@@ -1689,18 +1714,21 @@ function ActiveWorkout({
             />
           </div>
         </div>
-        {controlsBlock}
-        <label>
-          Session notes
-          <textarea
-            rows={3}
-            value={scheduledWorkout.notes ?? ""}
-            onChange={(event) =>
-              onUpdate(scheduledWorkout.id, { notes: event.target.value })
-            }
-            placeholder="Energy, pain, substitutions, or anything to remember."
-          />
-        </label>
+        <details className="active-manage-details">
+          <summary>Mark / finish workout</summary>
+          {manageBlock}
+          <label>
+            Session notes
+            <textarea
+              rows={3}
+              value={scheduledWorkout.notes ?? ""}
+              onChange={(event) =>
+                onUpdate(scheduledWorkout.id, { notes: event.target.value })
+              }
+              placeholder="Energy, pain, substitutions, or anything to remember."
+            />
+          </label>
+        </details>
       </section>
     </main>
   );

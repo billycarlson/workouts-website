@@ -547,6 +547,7 @@ button:disabled {
   flex-direction: column;
   height: 100%;
   min-height: var(--calendar-day-min-h);
+  overflow: hidden;
   padding: clamp(0.65rem, 1.2vw, 1.1rem);
   text-align: left;
   text-transform: none;
@@ -723,6 +724,7 @@ button:disabled {
 }
 
 .active-metrics {
+  align-items: start;
   display: grid;
   gap: 0.75rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -864,7 +866,6 @@ button:disabled {
     flex-direction: column;
   }
 
-  .active-primary-controls,
   .active-finish-actions,
   .active-metrics {
     grid-template-columns: 1fr;
@@ -1193,6 +1194,7 @@ html.display-xxl .view-topbar h1 {
 }
 
 .garage-manage-toggle {
+  align-self: flex-start;
   background: transparent;
   border: 1px solid var(--hairline-subtle);
   color: var(--muted);
@@ -1217,6 +1219,66 @@ html.display-xxl .view-topbar h1 {
   display: flex;
   gap: 1rem;
   justify-content: space-between;
+}
+
+.active-step-label {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.active-step-label p {
+  font-size: clamp(1.7rem, 7vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+.active-step-detail {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.active-video-area {
+  display: flex;
+  flex: 1;
+  min-height: 160px;
+}
+
+.active-video-area .exercise-video-thumb {
+  aspect-ratio: 16 / 9;
+  height: auto;
+  width: 100%;
+}
+
+.active-video-area .exercise-video-player {
+  max-width: 100%;
+  width: 100%;
+}
+
+.active-manage-details {
+  border-top: 1px solid var(--hairline-subtle);
+  padding-top: 0.65rem;
+}
+
+.active-manage-details summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  list-style: none;
+  padding: 0.25rem 0;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.active-manage-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.active-manage-details[open] summary {
+  margin-bottom: 0.75rem;
 }
 
 .exercise-video-thumb {
