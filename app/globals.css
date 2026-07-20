@@ -662,6 +662,28 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.workout-filter-toggle {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.workout-filter-toggle button {
+  background: transparent;
+  border: 1px solid var(--hairline-subtle);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-height: 36px;
+  padding: 0.4rem 0.75rem;
+}
+
+.workout-filter-toggle button.is-active {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
 .active-number-row {
   align-items: end;
   border-top: 2px solid var(--foreground);

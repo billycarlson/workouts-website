@@ -178,6 +178,7 @@ function WorkoutAppInner({
   const [menuOpen, setMenuOpen] = useState(false);
   const [displayXxl, setDisplayXxl] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [workoutFilter, setWorkoutFilter] = useState<"all" | "gym" | "home">("all");
   const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -564,6 +565,8 @@ function WorkoutAppInner({
         onToggleDisplayXxl={toggleDisplayXxl}
         onBack={() => beginActiveWorkout(null)}
         onUpdate={updateScheduledWorkout}
+        filter={workoutFilter}
+        onFilterChange={setWorkoutFilter}
       />
     );
   }
@@ -1409,6 +1412,41 @@ function WorkoutCard({
   );
 }
 
+function matchesWorkoutFilter(step: ExerciseStep, filter: "all" | "gym" | "home") {
+  if (filter === "all") return true;
+  if (filter === "gym") return step.detail === "🏋️ Gym";
+  if (filter === "home") return step.detail === "🏠 Home";
+  return true;
+}
+
+function WorkoutFilterToggle({
+  filter,
+  onChange,
+}: {
+  filter: "all" | "gym" | "home";
+  onChange: (filter: "all" | "gym" | "home") => void;
+}) {
+  const options: { value: "all" | "gym" | "home"; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "gym", label: "🏋️ Gym" },
+    { value: "home", label: "🏠 Home" },
+  ];
+  return (
+    <div className="workout-filter-toggle" role="group" aria-label="Filter exercises">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={option.value === filter ? "is-active" : ""}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ActiveWorkout({
   scheduledWorkout,
   workout,
@@ -1417,6 +1455,8 @@ function ActiveWorkout({
   onToggleDisplayXxl,
   onBack,
   onUpdate,
+  filter,
+  onFilterChange,
 }: {
   scheduledWorkout: ScheduledWorkout;
   workout: WorkoutTemplate;
@@ -1425,22 +1465,41 @@ function ActiveWorkout({
   onToggleDisplayXxl: () => void;
   onBack: () => void;
   onUpdate: (id: string, updates: Partial<ScheduledWorkout>) => void;
+  filter: "all" | "gym" | "home";
+  onFilterChange: (filter: "all" | "gym" | "home") => void;
 }) {
-  const stepCount = Math.max(workout.steps.length, 1);
   const [manageOpen, setManageOpen] = useState(false);
   const filmstripRef = useRef<HTMLDivElement>(null);
-  const stepIndex = Math.min(
-    Math.max(scheduledWorkout.activeStepIndex ?? 0, 0),
-    stepCount - 1,
-  );
+
+  // Indices into the FULL workout.steps array that match the active filter.
+  // activeStepIndex/stepStatuses always index into the full array so switching
+  // the filter never corrupts previously saved progress.
+  const visibleIndices = workout.steps
+    .map((_, index) => index)
+    .filter((index) => matchesWorkoutFilter(workout.steps[index], filter));
+  const effectiveIndices = visibleIndices.length > 0 ? visibleIndices : workout.steps.map((_, i) => i);
+  const stepCount = Math.max(effectiveIndices.length, 1);
+
+  const rawActiveIndex = Math.max(scheduledWorkout.activeStepIndex ?? 0, 0);
+  const posInVisible = (() => {
+    const exact = effectiveIndices.indexOf(rawActiveIndex);
+    if (exact !== -1) return exact;
+    // Land on the nearest visible step at or after the saved position.
+    const next = effectiveIndices.findIndex((i) => i >= rawActiveIndex);
+    return next !== -1 ? next : effectiveIndices.length - 1;
+  })();
+
+  const stepIndex = effectiveIndices[posInVisible] ?? 0;
   const step = workout.steps[stepIndex] ?? workout.steps[0];
-  const nextStep = workout.steps[stepIndex + 1];
-  const progress = `${stepIndex + 1}/${stepCount}`;
-  const stepStatuses = Array.from({ length: stepCount }, (_, index) => {
+  const nextStep = workout.steps[effectiveIndices[posInVisible + 1] ?? -1];
+  const progress = `${posInVisible + 1}/${stepCount}`;
+  const stepStatuses = Array.from({ length: workout.steps.length }, (_, index) => {
     return scheduledWorkout.stepStatuses?.[index] ?? "planned";
   });
   const currentStepStatus = stepStatuses[stepIndex];
-  const markedStepCount = stepStatuses.filter((status) => status !== "planned").length;
+  const markedStepCount = effectiveIndices.filter(
+    (index) => stepStatuses[index] !== "planned",
+  ).length;
   const stepCompletionPercent = Math.round((markedStepCount / stepCount) * 100);
   const stepMetrics = step
     ? [
@@ -1506,7 +1565,7 @@ function ActiveWorkout({
         className="active-secondary-action"
         onClick={() =>
           onUpdate(scheduledWorkout.id, {
-            activeStepIndex: Math.max(stepIndex - 1, 0),
+            activeStepIndex: effectiveIndices[Math.max(posInVisible - 1, 0)],
           })
         }
       >
@@ -1517,7 +1576,8 @@ function ActiveWorkout({
         className="active-primary-action"
         onClick={() =>
           onUpdate(scheduledWorkout.id, {
-            activeStepIndex: Math.min(stepIndex + 1, stepCount - 1),
+            activeStepIndex:
+              effectiveIndices[Math.min(posInVisible + 1, effectiveIndices.length - 1)],
           })
         }
       >
@@ -1584,6 +1644,7 @@ function ActiveWorkout({
           <button type="button" onClick={onBack}>
             End workout
           </button>
+          <WorkoutFilterToggle filter={filter} onChange={onFilterChange} />
           <span>{scheduledWorkout.date}</span>
         </div>
 
@@ -1636,7 +1697,8 @@ function ActiveWorkout({
         </RasterGrid>
 
         <div className="garage-filmstrip" ref={filmstripRef}>
-          {workout.steps.map((s, i) => {
+          {effectiveIndices.map((i, position) => {
+            const s = workout.steps[i];
             const sStatus = stepStatuses[i];
             return (
               <button
@@ -1651,7 +1713,7 @@ function ActiveWorkout({
                   .join(" ")}
                 onClick={() => onUpdate(scheduledWorkout.id, { activeStepIndex: i })}
               >
-                <span className="filmstrip-step-num">{i + 1}</span>
+                <span className="filmstrip-step-num">{position + 1}</span>
                 <span className="filmstrip-step-label">{s.label}</span>
               </button>
             );
@@ -1679,6 +1741,7 @@ function ActiveWorkout({
       </div>
       <section className="active-card">
         <p className="eyebrow active-workout-label">{workout.name}</p>
+        <WorkoutFilterToggle filter={filter} onChange={onFilterChange} />
         {step ? (
           <div className="active-step-label">
             <p>{step.label}</p>
